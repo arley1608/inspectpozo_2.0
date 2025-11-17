@@ -29,20 +29,21 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _loading = true);
     final auth = context.read<AuthService>();
 
-    final err = await auth.login(
-      username: _userCtrl.text.trim(),
-      password: _passCtrl.text,
-    );
-
-    if (!mounted) return;
-    setState(() => _loading = false);
-
-    if (err != null && err.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+    try {
+      await auth.login(
+        usuario: _userCtrl.text.trim(),
+        contrasenia: _passCtrl.text,
+      );
+      // Si llega aquí, login OK.
+      // MyApp cambiará de LoginScreen a HomeScreen según isAuthenticated.
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error al iniciar sesión: $e')));
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
-    // Nota: si tu app navega tras login desde un listener externo (e.g. Provider/Router),
-    // no hacemos navegación aquí. Si quieres navegar aquí mismo después de un login OK,
-    // puedes agregarlo en tu flujo existente sin romper la conexión.
   }
 
   @override
@@ -75,7 +76,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     const SizedBox(height: 40),
 
-                    // Campo USUARIO (texto plano, sin regex de email)
+                    // Campo USUARIO
                     TextFormField(
                       controller: _userCtrl,
                       textInputAction: TextInputAction.next,
@@ -125,7 +126,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     const SizedBox(height: 24),
 
-                    // Botón principal: Iniciar sesión (mantiene tu _submit -> AuthService.login)
+                    // Botón principal: Iniciar sesión
                     FilledButton.icon(
                       onPressed: _loading ? null : _submit,
                       icon: _loading
@@ -143,7 +144,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     const SizedBox(height: 12),
 
-                    // Botón secundario: Registrarse (mantengo tu navegación original)
+                    // Botón secundario: Registrarse
                     OutlinedButton.icon(
                       onPressed: _loading
                           ? null

@@ -40,23 +40,36 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final auth = context.read<AuthService>();
 
     try {
-      // crear usuario local + encolar para sync
+      // 1) Crear usuario local + encolar para sync
       await repo.createUserOffline(
         usuario: _emailCtrl.text.trim(),
         nombre: _nameCtrl.text.trim(),
         contrasenia: _passCtrl.text,
       );
 
-      // intentar login online (si hay red)
-      final loginError = await auth.login(
-        username: _emailCtrl.text.trim(),
-        password: _passCtrl.text,
-      );
+      // 2) Intentar sincronizar inmediatamente con el servidor (si hay red)
+      try {
+        await repo.syncPending();
+      } catch (_) {
+        // Si no hay internet o falla, se sincronizará más tarde.
+      }
 
-      if (!mounted) return;
-      setState(() => _loading = false);
+      // 3) Intentar login online con el usuario recién creado
+      try {
+        await auth.login(
+          usuario: _emailCtrl.text.trim(),
+          contrasenia: _passCtrl.text,
+        );
 
-      if (loginError != null) {
+        if (!mounted) return;
+        setState(() => _loading = false);
+
+        // Si el login fue exitoso, volvemos.
+        Navigator.pop(context);
+      } catch (_) {
+        if (!mounted) return;
+        setState(() => _loading = false);
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -65,8 +78,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         );
         Navigator.pop(context);
-      } else {
-        Navigator.pop(context); // MyApp cambiará a Home
       }
     } catch (e) {
       if (!mounted) return;
@@ -79,6 +90,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Crear cuenta')),
       body: Center(
@@ -94,6 +107,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // Logo igual que en login
+                    Image.asset(
+                      'assets/logo_inspectpozo.png',
+                      height: size.height * 0.18,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const FlutterLogo(size: 80),
+                    ),
+                    const SizedBox(height: 20),
+
                     TextFormField(
                       controller: _emailCtrl,
                       decoration: const InputDecoration(

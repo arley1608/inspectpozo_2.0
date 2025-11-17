@@ -7,7 +7,7 @@ class ApiClient {
   ApiClient({String? token})
     : dio = Dio(
         BaseOptions(
-          baseUrl: Env.baseUrl,
+          baseUrl: Env.baseUrl, // ej: http://IP_SERVIDOR:8000
           connectTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 10),
         ),
@@ -24,6 +24,8 @@ class ApiClient {
     }
   }
 
+  // ---------- Usuarios ----------
+
   Future<Map<String, dynamic>> registerUser({
     required String usuario,
     required String nombre,
@@ -32,6 +34,30 @@ class ApiClient {
     final res = await dio.post(
       '/auth/register',
       data: {'usuario': usuario, 'nombre': nombre, 'contrasenia': contrasenia},
+    );
+    return Map<String, dynamic>.from(res.data);
+  }
+
+  // ---------- Proyectos ----------
+
+  Future<Map<String, dynamic>> createProject({
+    required String token,
+    required String nombre,
+    String? contrato,
+    String? contratante,
+    String? contratista,
+    String? encargado,
+  }) async {
+    final res = await dio.post(
+      '/proyectos/',
+      queryParameters: {'token': token},
+      data: {
+        'nombre': nombre,
+        'contrato': contrato,
+        'contratante': contratante,
+        'contratista': contratista,
+        'encargado': encargado,
+      },
     );
     return Map<String, dynamic>.from(res.data);
   }
