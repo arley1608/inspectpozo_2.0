@@ -159,6 +159,10 @@ class AppDatabase extends _$AppDatabase {
       into(projects).insert(entry);
 
   Future<List<Project>> listProjects() => select(projects).get();
+
+  Future<int> deleteProjectById(int id) {
+    return (delete(projects)..where((tbl) => tbl.id.equals(id))).go();
+  }
 }
 
 LazyDatabase _openDb() {

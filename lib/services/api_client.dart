@@ -7,7 +7,7 @@ class ApiClient {
   ApiClient({String? token})
     : dio = Dio(
         BaseOptions(
-          baseUrl: Env.baseUrl, // ej: http://IP_SERVIDOR:8005
+          baseUrl: Env.baseUrl,
           connectTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 10),
         ),
@@ -62,7 +62,6 @@ class ApiClient {
     return Map<String, dynamic>.from(res.data);
   }
 
-  /// 👉 Nuevo: obtener los proyectos del usuario logeado
   Future<List<Map<String, dynamic>>> getProjects({
     required String token,
   }) async {
@@ -76,5 +75,13 @@ class ApiClient {
     } else {
       throw Exception('Respuesta inesperada al obtener los proyectos');
     }
+  }
+
+  /// Eliminar proyecto en el servidor
+  Future<void> deleteProject({
+    required String token,
+    required int serverId,
+  }) async {
+    await dio.delete('/proyectos/$serverId', queryParameters: {'token': token});
   }
 }

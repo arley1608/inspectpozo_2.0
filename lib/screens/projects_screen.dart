@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../data/local/app_database.dart';
 import '../data/repo/project_repository.dart';
+import '../services/auth_service.dart';
+import '../services/api_client.dart';
 import 'project_manage_screen.dart';
 
 class ProjectsScreen extends StatefulWidget {
@@ -26,9 +28,70 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     _futureProjects = repo.getAllProjects();
   }
 
+  Future<void> _deleteProject(Project project) async {
+    final repo = context.read<ProjectRepository>();
+    final auth = context.read<AuthService>();
+    final api = context.read<ApiClient>();
+    final theme = Theme.of(context);
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar proyecto'),
+        content: Text(
+          '¿Seguro que deseas eliminar el proyecto "${project.nombre}"?\n\n'
+          'Esta acción eliminará el registro local y, si ya fue sincronizado, '
+          'también lo eliminará del servidor.',
+          style: theme.textTheme.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true) return;
+
+    final serverId = project.serverId;
+    final token = auth.token;
+
+    // Si el proyecto está en el servidor, intentar borrarlo allá primero
+    if (serverId != null && token != null) {
+      try {
+        await api.deleteProject(token: token, serverId: serverId);
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo eliminar en el servidor: $e')),
+        );
+        return; // no borramos local para no desincronizar
+      }
+    }
+
+    // Borrar localmente
+    await repo.deleteLocalProjectById(project.id);
+
+    _loadProjects();
+    if (!mounted) return;
+    setState(() {});
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Proyecto eliminado correctamente')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final auth = context.watch<AuthService>();
+    final currentUserId = auth.currentUserId;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Proyectos activos')),
@@ -54,14 +117,20 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             );
           }
 
-          final projects = snapshot.data ?? [];
+          var projects = snapshot.data ?? [];
+
+          if (currentUserId != null) {
+            projects = projects
+                .where((p) => p.usuarioServerId == currentUserId)
+                .toList();
+          }
 
           if (projects.isEmpty) {
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text(
-                  'Aún no tienes proyectos registrados.\n\n'
+                  'Aún no tienes proyectos registrados para tu usuario.\n\n'
                   'Crea un nuevo proyecto desde la pantalla de inicio.',
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyMedium,
@@ -84,15 +153,11 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
 
               final detalles = <String>[];
               if (contrato.isNotEmpty) detalles.add('Contrato: $contrato');
-              if (contratante.isNotEmpty) {
+              if (contratante.isNotEmpty)
                 detalles.add('Contratante: $contratante');
-              }
-              if (contratista.isNotEmpty) {
+              if (contratista.isNotEmpty)
                 detalles.add('Contratista: $contratista');
-              }
-              if (encargado.isNotEmpty) {
-                detalles.add('Encargado: $encargado');
-              }
+              if (encargado.isNotEmpty) detalles.add('Encargado: $encargado');
 
               return Card(
                 elevation: 2,
@@ -105,7 +170,6 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // fila principal: icono + nombre
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -127,8 +191,6 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                         ],
                       ),
                       const SizedBox(height: 8),
-
-                      // detalles alineados hacia abajo
                       if (detalles.isNotEmpty)
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -145,30 +207,32 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                               ),
                           ],
                         ),
-
                       const SizedBox(height: 12),
-
-                      // botón "Gestionar"
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    ProjectManageScreen(project: p.toJson()),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.manage_accounts),
-                          label: const Text('Gestionar'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 10,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      ProjectManageScreen(project: p.toJson()),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.manage_accounts),
+                            label: const Text('Gestionar'),
+                          ),
+                          const SizedBox(width: 8),
+                          TextButton.icon(
+                            onPressed: () => _deleteProject(p),
+                            icon: const Icon(Icons.delete_outline),
+                            label: const Text('Eliminar'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.red[700],
                             ),
                           ),
-                        ),
+                        ],
                       ),
                     ],
                   ),

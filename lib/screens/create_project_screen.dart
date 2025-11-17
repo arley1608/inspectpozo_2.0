@@ -34,13 +34,23 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _saving = true);
-
     final projectRepo = context.read<ProjectRepository>();
     final auth = context.read<AuthService>();
 
+    setState(() => _saving = true);
+
     try {
-      // 1) Crear proyecto en modo offline (SQLite + Outbox)
+      // Obtener id de usuario en servidor (si es posible)
+      final me = await auth.me();
+
+      int? userServerId;
+      if (me != null && me['id'] is int) {
+        userServerId = me['id'] as int;
+      } else {
+        userServerId = null;
+      }
+
+      // Crear proyecto local + outbox
       await projectRepo.createProjectOffline(
         nombre: _nombreCtrl.text.trim(),
         contrato: _contratoCtrl.text.trim().isEmpty
@@ -55,16 +65,16 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
         encargado: _encargadoCtrl.text.trim().isEmpty
             ? null
             : _encargadoCtrl.text.trim(),
+        usuarioServerId: userServerId,
       );
 
-      // 2) Intentar sincronizar inmediatamente si tenemos token (y conexión)
+      // Intentar sincronizar si tenemos token
       final token = auth.token;
       if (token != null) {
         try {
           await projectRepo.syncPending(token: token);
         } catch (_) {
-          // Si no hay internet o falla, no rompemos el flujo:
-          // el proyecto quedará pendiente y se sincronizará después.
+          // si no hay internet, queda pendiente
         }
       }
 
@@ -91,32 +101,37 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const maxWidth = 420.0;
+    final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Crear nuevo proyecto')),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: maxWidth),
-          child: Card(
-            elevation: 2,
-            margin: const EdgeInsets.all(24),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
+      appBar: AppBar(title: const Text('Crear proyecto')),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 500),
               child: Form(
                 key: _formKey,
-                child: ListView(
-                  shrinkWrap: true,
+                child: Column(
                   children: [
+                    Text(
+                      'Nuevo proyecto',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.blueGrey[900],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
                     TextFormField(
                       controller: _nombreCtrl,
                       decoration: const InputDecoration(
                         labelText: 'Nombre del proyecto',
-                        prefixIcon: Icon(Icons.badge),
+                        prefixIcon: Icon(Icons.folder),
                       ),
-                      validator: (v) {
-                        if (v == null || v.trim().isEmpty) {
-                          return 'Ingrese el nombre del proyecto';
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Ingresa un nombre para el proyecto';
                         }
                         return null;
                       },
@@ -142,7 +157,7 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
                       controller: _contratistaCtrl,
                       decoration: const InputDecoration(
                         labelText: 'Contratista',
-                        prefixIcon: Icon(Icons.engineering),
+                        prefixIcon: Icon(Icons.business),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -150,7 +165,7 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
                       controller: _encargadoCtrl,
                       decoration: const InputDecoration(
                         labelText: 'Encargado',
-                        prefixIcon: Icon(Icons.account_circle),
+                        prefixIcon: Icon(Icons.engineering),
                       ),
                     ),
                     const SizedBox(height: 24),

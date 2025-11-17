@@ -107,4 +107,8 @@ class ProjectRepository {
   }
 
   Future<List<Project>> getAllProjects() => db.listProjects();
+
+  Future<void> deleteLocalProjectById(int id) async {
+    await db.deleteProjectById(id);
+  }
 }
