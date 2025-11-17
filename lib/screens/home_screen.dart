@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../data/repo/project_repository.dart';
 import 'create_project_screen.dart';
+import 'projects_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -139,10 +140,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         const SizedBox(height: 16),
 
-                        // Botón secundario: Proyectos activos (por ahora sin lógica)
+                        // Botón secundario: Proyectos activos
                         OutlinedButton.icon(
                           onPressed: () {
-                            // Aquí luego conectamos la lista de proyectos
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const ProjectsScreen(),
+                              ),
+                            );
                           },
                           icon: const Icon(Icons.folder_open),
                           label: const Text('Proyectos activos'),
@@ -157,7 +162,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
             ),
 
-            // Botón de cerrar sesión con confirmación
+            // Botón de logout en la esquina superior izquierda
             Positioned(
               top: 8,
               left: 8,

@@ -7,7 +7,7 @@ class ApiClient {
   ApiClient({String? token})
     : dio = Dio(
         BaseOptions(
-          baseUrl: Env.baseUrl, // ej: http://IP_SERVIDOR:8000
+          baseUrl: Env.baseUrl, // ej: http://IP_SERVIDOR:8005
           connectTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 10),
         ),
@@ -60,5 +60,21 @@ class ApiClient {
       },
     );
     return Map<String, dynamic>.from(res.data);
+  }
+
+  /// 👉 Nuevo: obtener los proyectos del usuario logeado
+  Future<List<Map<String, dynamic>>> getProjects({
+    required String token,
+  }) async {
+    final res = await dio.get('/proyectos/', queryParameters: {'token': token});
+
+    final data = res.data;
+    if (data is List) {
+      return data
+          .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+    } else {
+      throw Exception('Respuesta inesperada al obtener los proyectos');
+    }
   }
 }
