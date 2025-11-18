@@ -89,14 +89,44 @@ class ApiClient {
   Future<void> createHydraulicStructure({
     required String token,
     required String id,
-    String? tipo,
+    required String tipo, // "Pozo" o "Sumidero"
     required DateTime fechaInspeccion,
     required String horaInspeccion, // "HH:mm:ss"
     String? climaInspeccion,
     String? tipoVia,
-    String? tipoSistema,
+
+    // Pozo
+    required String tipoSistema,
     String? material,
+    bool? conoReduccion,
+    double? alturaCono,
+    double? profundidadPozo,
+    double? diametroCamara,
+    String? elementosPozo,
+    String? estadoElemento,
+    String? materialElemento,
+
+    // Compartidos extra
+    bool? sedimentacion,
+    bool? coberturaTuberiaSalida,
+    String? depositoPredomina,
+    bool? flujoRepresado,
+    bool? nivelCubreCotaSalida,
+    double? cotaEstructura,
+    String? condicionesInvestiga,
     String? observaciones,
+
+    // Sumidero
+    String? tipoSumidero,
+    double? anchoSumidero,
+    double? largoSumidero,
+    double? alturaSumidero,
+    double? materialSumidero,
+    double? anchoRejilla,
+    double? largoRejilla,
+    double? alturaRejilla,
+    String? materialRejilla,
+
     required int idProyecto,
   }) async {
     await dio.post(
@@ -111,9 +141,49 @@ class ApiClient {
         'tipo_via': tipoVia,
         'tipo_sistema': tipoSistema,
         'material': material,
+        'cono_reduccion': conoReduccion,
+        'altura_cono': alturaCono,
+        'profundidad_pozo': profundidadPozo,
+        'diametro_camara': diametroCamara,
+        'elementos_pozo': elementosPozo,
+        'estado_elemento': estadoElemento,
+        'material_elemento': materialElemento,
+        'sedimentacion': sedimentacion,
+        'cobertura_tuberia_salida': coberturaTuberiaSalida,
+        'deposito_predomina': depositoPredomina,
+        'flujo_represado': flujoRepresado,
+        'nivel_cubre_cotasalida': nivelCubreCotaSalida,
+        'cota_estructura': cotaEstructura,
+        'condiciones_investiga': condicionesInvestiga,
         'observaciones': observaciones,
+        'tipo_sumidero': tipoSumidero,
+        'ancho_sumidero': anchoSumidero,
+        'largo_sumidero': largoSumidero,
+        'altura_sumidero': alturaSumidero,
+        'material_sumidero': materialSumidero,
+        'ancho_rejilla': anchoRejilla,
+        'largo_rejilla': largoRejilla,
+        'altura_rejilla': alturaRejilla,
+        'material_rejilla': materialRejilla,
         'id_proyecto': idProyecto,
       },
     );
+  }
+
+  Future<String> getNextHydraulicStructureId({
+    required String token,
+    required String tipo, // "Pozo" o "Sumidero"
+  }) async {
+    final res = await dio.get(
+      '/estructuras/next-id',
+      queryParameters: {'token': token, 'tipo': tipo},
+    );
+
+    final data = res.data;
+    if (data is Map && data['id'] is String) {
+      return data['id'] as String;
+    } else {
+      throw Exception('Respuesta inesperada al solicitar el siguiente ID');
+    }
   }
 }
