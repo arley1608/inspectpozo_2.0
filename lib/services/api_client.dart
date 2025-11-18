@@ -77,11 +77,43 @@ class ApiClient {
     }
   }
 
-  /// Eliminar proyecto en el servidor
   Future<void> deleteProject({
     required String token,
     required int serverId,
   }) async {
     await dio.delete('/proyectos/$serverId', queryParameters: {'token': token});
+  }
+
+  // ---------- Estructuras hidráulicas ----------
+
+  Future<void> createHydraulicStructure({
+    required String token,
+    required String id,
+    String? tipo,
+    required DateTime fechaInspeccion,
+    required String horaInspeccion, // "HH:mm:ss"
+    String? climaInspeccion,
+    String? tipoVia,
+    String? tipoSistema,
+    String? material,
+    String? observaciones,
+    required int idProyecto,
+  }) async {
+    await dio.post(
+      '/estructuras/',
+      queryParameters: {'token': token},
+      data: {
+        'id': id,
+        'tipo': tipo,
+        'fecha_inspeccion': fechaInspeccion.toIso8601String().split('T')[0],
+        'hora_inspeccion': horaInspeccion,
+        'clima_inspeccion': climaInspeccion,
+        'tipo_via': tipoVia,
+        'tipo_sistema': tipoSistema,
+        'material': material,
+        'observaciones': observaciones,
+        'id_proyecto': idProyecto,
+      },
+    );
   }
 }

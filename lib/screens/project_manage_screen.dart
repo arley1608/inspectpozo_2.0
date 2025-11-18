@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'create_hydraulic_structure_screen.dart';
+
 class ProjectManageScreen extends StatelessWidget {
   final Map<String, dynamic> project;
 
@@ -25,10 +27,10 @@ class ProjectManageScreen extends StatelessWidget {
               child: IgnorePointer(
                 child: Center(
                   child: Opacity(
-                    opacity: 0.07, // ajusta si lo quieres más/menos visible
+                    opacity: 0.07,
                     child: Image.asset(
-                      'assets/images/logo_inspectpozo.png', // <-- ajusta la ruta si es necesario
-                      width: 560,
+                      'assets/images/app_logo.png', // ajusta ruta si es diferente
+                      width: 260,
                       fit: BoxFit.contain,
                     ),
                   ),
@@ -45,7 +47,6 @@ class ProjectManageScreen extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Nombre del proyecto
                       Text(
                         nombre.isEmpty ? 'Proyecto sin nombre' : nombre,
                         textAlign: TextAlign.center,
@@ -56,7 +57,6 @@ class ProjectManageScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 24),
 
-                      // Tarjeta con toda la info del proyecto
                       Card(
                         elevation: 2,
                         shape: RoundedRectangleBorder(
@@ -92,7 +92,6 @@ class ProjectManageScreen extends StatelessWidget {
                               ),
                               const SizedBox(height: 12),
 
-                              // Información detallada del proyecto
                               if (contrato.isNotEmpty)
                                 _InfoRow(
                                   icon: Icons.receipt_long,
@@ -135,12 +134,17 @@ class ProjectManageScreen extends StatelessWidget {
 
                       const SizedBox(height: 32),
 
-                      // Botón principal: Agregar estructura hidráulica
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton.icon(
                           onPressed: () {
-                            // TODO: Implementar navegación a creación de estructura hidráulica
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => CreateHydraulicStructureScreen(
+                                  project: project,
+                                ),
+                              ),
+                            );
                           },
                           icon: const Icon(Icons.add_circle_outline),
                           label: const Text('Agregar estructura hidráulica'),
@@ -164,7 +168,6 @@ class ProjectManageScreen extends StatelessWidget {
   }
 }
 
-/// Widget auxiliar para mostrar filas de información: icono + etiqueta + valor
 class _InfoRow extends StatelessWidget {
   final IconData icon;
   final String label;
