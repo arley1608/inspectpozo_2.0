@@ -134,6 +134,7 @@ class ProjectManageScreen extends StatelessWidget {
 
                       const SizedBox(height: 32),
 
+                      // Botón principal: agregar estructura hidráulica
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton.icon(
@@ -149,6 +150,26 @@ class ProjectManageScreen extends StatelessWidget {
                           icon: const Icon(Icons.add_circle_outline),
                           label: const Text('Agregar estructura hidráulica'),
                           style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Nuevo botón blanco: ver estructuras hidráulicas (sin funcionalidad aún)
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            // TODO: implementar navegación a la lista de estructuras hidráulicas
+                          },
+                          icon: const Icon(Icons.list_alt),
+                          label: const Text('Ver estructuras hidráulicas'),
+                          style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 24,
                               vertical: 14,
