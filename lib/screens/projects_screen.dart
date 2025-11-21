@@ -6,6 +6,7 @@ import '../data/repo/project_repository.dart';
 import '../services/auth_service.dart';
 import '../services/api_client.dart';
 import 'project_manage_screen.dart';
+import 'edit_project_screen.dart';
 
 class ProjectsScreen extends StatefulWidget {
   const ProjectsScreen({super.key});
@@ -62,7 +63,6 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     final serverId = project.serverId;
     final token = auth.token;
 
-    // Si el proyecto está en el servidor, intentar borrarlo allá primero
     if (serverId != null && token != null) {
       try {
         await api.deleteProject(token: token, serverId: serverId);
@@ -71,11 +71,10 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('No se pudo eliminar en el servidor: $e')),
         );
-        return; // no borramos local para no desincronizar
+        return;
       }
     }
 
-    // Borrar localmente
     await repo.deleteLocalProjectById(project.id);
 
     _loadProjects();
@@ -211,7 +210,6 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          // Botón Gestionar (ya lo tenías)
                           OutlinedButton.icon(
                             onPressed: () {
                               Navigator.of(context).push(
@@ -225,17 +223,23 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                             label: const Text('Gestionar'),
                           ),
                           const SizedBox(width: 8),
-
-                          // 🔹 Nuevo botón: Modificar (sin funcionalidad todavía)
                           OutlinedButton.icon(
-                            onPressed: () {
-                              // TODO: agregar lógica de modificación más adelante
+                            onPressed: () async {
+                              final result = await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => EditProjectScreen(project: p),
+                                ),
+                              );
+
+                              if (result == true) {
+                                _loadProjects();
+                                if (mounted) setState(() {});
+                              }
                             },
                             icon: const Icon(Icons.edit),
                             label: const Text('Modificar'),
                           ),
                           const SizedBox(width: 8),
-
                           TextButton.icon(
                             onPressed: () => _deleteProject(p),
                             icon: const Icon(Icons.delete_outline),

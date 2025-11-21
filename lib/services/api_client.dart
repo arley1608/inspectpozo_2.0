@@ -84,6 +84,33 @@ class ApiClient {
     await dio.delete('/proyectos/$serverId', queryParameters: {'token': token});
   }
 
+  /// 🔹 NUEVO: actualizar proyecto en el servidor
+  Future<Map<String, dynamic>> updateProject({
+    required String token,
+    required int serverId,
+    String? nombre,
+    String? contrato,
+    String? contratante,
+    String? contratista,
+    String? encargado,
+  }) async {
+    final body = <String, dynamic>{};
+
+    if (nombre != null) body['nombre'] = nombre;
+    if (contrato != null) body['contrato'] = contrato;
+    if (contratante != null) body['contratante'] = contratante;
+    if (contratista != null) body['contratista'] = contratista;
+    if (encargado != null) body['encargado'] = encargado;
+
+    final res = await dio.put(
+      '/proyectos/$serverId',
+      queryParameters: {'token': token},
+      data: body,
+    );
+
+    return Map<String, dynamic>.from(res.data);
+  }
+
   // ---------- Estructuras hidráulicas ----------
 
   Future<void> createHydraulicStructure({
