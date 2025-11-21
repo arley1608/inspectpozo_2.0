@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import 'hydraulic_structures_screen.dart';
 import 'create_hydraulic_structure_screen.dart';
 
 class ProjectManageScreen extends StatelessWidget {
@@ -165,7 +165,31 @@ class ProjectManageScreen extends StatelessWidget {
                         width: double.infinity,
                         child: OutlinedButton.icon(
                           onPressed: () {
-                            // TODO: implementar navegación a la lista de estructuras hidráulicas
+                            final serverId = (project['serverId'] as int?);
+                            final nombreProyecto =
+                                (project['nombre'] as String?) ??
+                                'Proyecto sin nombre';
+
+                            if (serverId == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Este proyecto aún no está sincronizado con el servidor. '
+                                    'No es posible listar sus estructuras.',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => HydraulicStructuresScreen(
+                                  projectServerId: serverId,
+                                  projectName: nombreProyecto,
+                                ),
+                              ),
+                            );
                           },
                           icon: const Icon(Icons.list_alt),
                           label: const Text('Ver estructuras hidráulicas'),

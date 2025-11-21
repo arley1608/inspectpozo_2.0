@@ -84,7 +84,7 @@ class ApiClient {
     await dio.delete('/proyectos/$serverId', queryParameters: {'token': token});
   }
 
-  /// 🔹 NUEVO: actualizar proyecto en el servidor
+  /// Actualizar proyecto en el servidor
   Future<Map<String, dynamic>> updateProject({
     required String token,
     required int serverId,
@@ -208,6 +208,26 @@ class ApiClient {
       return data['id'] as String;
     } else {
       throw Exception('Respuesta inesperada al solicitar el siguiente ID');
+    }
+  }
+
+  /// 🔹 NUEVO: obtener lista de estructuras hidráulicas por proyecto
+  Future<List<Map<String, dynamic>>> getHydraulicStructures({
+    required String token,
+    required int projectServerId,
+  }) async {
+    final res = await dio.get(
+      '/estructuras/',
+      queryParameters: {'token': token, 'id_proyecto': projectServerId},
+    );
+
+    final data = res.data;
+    if (data is List) {
+      return data
+          .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+    } else {
+      throw Exception('Respuesta inesperada al obtener las estructuras');
     }
   }
 }
