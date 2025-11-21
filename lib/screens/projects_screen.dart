@@ -211,6 +211,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
+                          // Botón Gestionar (ya lo tenías)
                           OutlinedButton.icon(
                             onPressed: () {
                               Navigator.of(context).push(
@@ -224,6 +225,17 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                             label: const Text('Gestionar'),
                           ),
                           const SizedBox(width: 8),
+
+                          // 🔹 Nuevo botón: Modificar (sin funcionalidad todavía)
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              // TODO: agregar lógica de modificación más adelante
+                            },
+                            icon: const Icon(Icons.edit),
+                            label: const Text('Modificar'),
+                          ),
+                          const SizedBox(width: 8),
+
                           TextButton.icon(
                             onPressed: () => _deleteProject(p),
                             icon: const Icon(Icons.delete_outline),
