@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../services/auth_service.dart';
 import '../services/api_client.dart';
+import '../services/auth_service.dart';
 
 class CreateHydraulicStructureScreen extends StatefulWidget {
   final Map<String, dynamic> project;
@@ -18,98 +18,110 @@ class _CreateHydraulicStructureScreenState
     extends State<CreateHydraulicStructureScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // ID generado por backend (pzXXXX / smXXXX)
-  final TextEditingController _idCtrl = TextEditingController();
-
-  // Compartidos
-  final TextEditingController _climaCtrl = TextEditingController();
-  final TextEditingController _tipoViaCtrl = TextEditingController();
-  final TextEditingController _condicionesCtrl = TextEditingController();
-  final TextEditingController _observacionesCtrl = TextEditingController();
-
-  // Pozo
-  final TextEditingController _tipoSistemaCtrl = TextEditingController();
-  final TextEditingController _materialCtrl = TextEditingController();
-  final TextEditingController _alturaConoCtrl = TextEditingController();
-  final TextEditingController _profundidadPozoCtrl = TextEditingController();
-  final TextEditingController _diametroCamaraCtrl = TextEditingController();
-  final TextEditingController _elementosPozoCtrl = TextEditingController();
-  final TextEditingController _estadoElementoCtrl = TextEditingController();
-  final TextEditingController _materialElementoCtrl = TextEditingController();
-
-  // Sumidero
-  final TextEditingController _tipoSumideroCtrl = TextEditingController();
-  final TextEditingController _anchoSumideroCtrl = TextEditingController();
-  final TextEditingController _largoSumideroCtrl = TextEditingController();
-  final TextEditingController _alturaSumideroCtrl = TextEditingController();
-  final TextEditingController _materialSumideroCtrl = TextEditingController();
-  final TextEditingController _anchoRejillaCtrl = TextEditingController();
-  final TextEditingController _largoRejillaCtrl = TextEditingController();
-  final TextEditingController _alturaRejillaCtrl = TextEditingController();
-  final TextEditingController _materialRejillaCtrl = TextEditingController();
-
-  // Booleans compartidos / pozo
-  bool _sedimentacion = false;
-  bool _coberturaTuberiaSalida = false;
-  bool _flujoRepresado = false;
-  bool _nivelCubreCotaSalida = false;
-  bool _conoReduccion = false;
-
-  // Otros compartidos
-  final TextEditingController _cotaEstructuraCtrl = TextEditingController();
-  final TextEditingController _depositoPredominaCtrl = TextEditingController();
-
-  String? _selectedTipo; // "Pozo" o "Sumidero"
-  bool _loadingId = false;
+  // ----------- Campos básicos / compartidos -----------
+  String? _tipo; // Pozo / Sumidero
+  String? _generatedId;
 
   DateTime? _fechaInspeccion;
   TimeOfDay? _horaInspeccion;
 
+  final _climaCtrl = TextEditingController();
+  final _tipoViaCtrl = TextEditingController();
+  final _tipoSistemaCtrl = TextEditingController();
+  final _materialCtrl = TextEditingController();
+
+  bool _sedimentacion = false;
+  bool _coberturaTuberiaSalida = false;
+  bool _flujoRepresado = false;
+  bool _nivelCubreCotaSalida = false;
+
+  final _depositoPredominaCtrl = TextEditingController();
+  final _cotaEstructuraCtrl = TextEditingController();
+  final _condicionesInvestigaCtrl = TextEditingController();
+  final _observacionesCtrl = TextEditingController();
+
+  // ----------- Campos Pozo -----------
+  bool _conoReduccion = false;
+  final _alturaConoCtrl = TextEditingController();
+  final _profundidadPozoCtrl = TextEditingController();
+  final _diametroCamaraCtrl = TextEditingController();
+
+  // ----------- Campos Sumidero -----------
+  final _tipoSumideroCtrl = TextEditingController();
+  final _anchoSumideroCtrl = TextEditingController();
+  final _largoSumideroCtrl = TextEditingController();
+  final _alturaSumideroCtrl = TextEditingController();
+  final _materialSumideroCtrl = TextEditingController();
+
+  final _anchoRejillaCtrl = TextEditingController();
+  final _largoRejillaCtrl = TextEditingController();
+  final _alturaRejillaCtrl = TextEditingController();
+  final _materialRejillaCtrl = TextEditingController();
+
   bool _saving = false;
 
   @override
+  void initState() {
+    super.initState();
+    _tipo = 'Pozo'; // valor por defecto
+    _fetchNextId();
+  }
+
+  @override
   void dispose() {
-    _idCtrl.dispose();
     _climaCtrl.dispose();
     _tipoViaCtrl.dispose();
-    _condicionesCtrl.dispose();
-    _observacionesCtrl.dispose();
-
     _tipoSistemaCtrl.dispose();
     _materialCtrl.dispose();
+    _depositoPredominaCtrl.dispose();
+    _cotaEstructuraCtrl.dispose();
+    _condicionesInvestigaCtrl.dispose();
+    _observacionesCtrl.dispose();
+
     _alturaConoCtrl.dispose();
     _profundidadPozoCtrl.dispose();
     _diametroCamaraCtrl.dispose();
-    _elementosPozoCtrl.dispose();
-    _estadoElementoCtrl.dispose();
-    _materialElementoCtrl.dispose();
 
     _tipoSumideroCtrl.dispose();
     _anchoSumideroCtrl.dispose();
     _largoSumideroCtrl.dispose();
     _alturaSumideroCtrl.dispose();
     _materialSumideroCtrl.dispose();
+
     _anchoRejillaCtrl.dispose();
     _largoRejillaCtrl.dispose();
     _alturaRejillaCtrl.dispose();
     _materialRejillaCtrl.dispose();
 
-    _cotaEstructuraCtrl.dispose();
-    _depositoPredominaCtrl.dispose();
-
     super.dispose();
+  }
+
+  // ---------- Helpers ----------
+
+  double? _toDouble(String text) {
+    if (text.trim().isEmpty) return null;
+    return double.tryParse(text.replaceAll(',', '.'));
+  }
+
+  String? _formatHora(TimeOfDay? t) {
+    if (t == null) return null;
+    final h = t.hour.toString().padLeft(2, '0');
+    final m = t.minute.toString().padLeft(2, '0');
+    return '$h:$m:00';
   }
 
   Future<void> _pickFecha() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: _fechaInspeccion ?? now,
       firstDate: DateTime(now.year - 5),
       lastDate: DateTime(now.year + 5),
+      initialDate: _fechaInspeccion ?? now,
     );
     if (picked != null) {
-      setState(() => _fechaInspeccion = picked);
+      setState(() {
+        _fechaInspeccion = picked;
+      });
     }
   }
 
@@ -119,90 +131,37 @@ class _CreateHydraulicStructureScreenState
       initialTime: _horaInspeccion ?? TimeOfDay.now(),
     );
     if (picked != null) {
-      setState(() => _horaInspeccion = picked);
+      setState(() {
+        _horaInspeccion = picked;
+      });
     }
   }
 
-  double? _parseDouble(TextEditingController c) {
-    final text = c.text.trim();
-    if (text.isEmpty) return null;
-    return double.tryParse(text);
-  }
-
-  Future<void> _onTipoChanged(String value) async {
-    setState(() {
-      _selectedTipo = value;
-      _loadingId = true;
-      _idCtrl.text = '';
-    });
-
+  Future<void> _fetchNextId() async {
     final auth = context.read<AuthService>();
-    final api = context.read<ApiClient>();
-
     final token = auth.token;
-    if (token == null) {
-      setState(() => _loadingId = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No hay sesión activa. Vuelve a iniciar sesión.'),
-        ),
-      );
-      return;
-    }
+    if (token == null || _tipo == null) return;
 
     try {
-      final id = await api.getNextHydraulicStructureId(
+      final api = context.read<ApiClient>();
+      final nextId = await api.getNextHydraulicStructureId(
         token: token,
-        tipo: value,
+        tipo: _tipo!,
       );
-
       setState(() {
-        _idCtrl.text = id;
-        _loadingId = false;
+        _generatedId = nextId;
       });
-    } catch (e) {
-      setState(() => _loadingId = false);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al generar ID para la estructura: $e')),
-      );
+    } catch (_) {
+      // en caso de error dejamos el ID como está
     }
   }
 
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+  // ---------- Guardar estructura ----------
 
-    final auth = context.read<AuthService>();
-    final api = context.read<ApiClient>();
-
-    final token = auth.token;
-    if (token == null) {
+  Future<void> _save() async {
+    if (_tipo == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No hay sesión activa. Vuelve a iniciar sesión.'),
-        ),
-      );
-      return;
-    }
-
-    final serverProjectId = widget.project['serverId'] as int?;
-    if (serverProjectId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Este proyecto aún no está sincronizado con el servidor.\n'
-            'Primero sincroniza el proyecto antes de agregar estructuras.',
-          ),
-        ),
-      );
-      return;
-    }
-
-    if (_selectedTipo == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Selecciona el tipo de estructura (Pozo o Sumidero).'),
-        ),
+        const SnackBar(content: Text('Selecciona el tipo de estructura')),
       );
       return;
     }
@@ -210,52 +169,78 @@ class _CreateHydraulicStructureScreenState
     if (_fechaInspeccion == null || _horaInspeccion == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Selecciona la fecha y la hora de la inspección.'),
+          content: Text('Debes seleccionar fecha y hora de inspección'),
         ),
       );
       return;
     }
 
-    setState(() => _saving = true);
+    if (_generatedId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo generar el ID de la estructura'),
+        ),
+      );
+      return;
+    }
+
+    if (!_formKey.currentState!.validate()) return;
+
+    final auth = context.read<AuthService>();
+    final token = auth.token;
+
+    if (token == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sesión inválida, inicia sesión de nuevo'),
+        ),
+      );
+      return;
+    }
+
+    final serverId = widget.project['serverId'] as int?;
+    if (serverId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Este proyecto aún no está sincronizado')),
+      );
+      return;
+    }
+
+    setState(() {
+      _saving = true;
+    });
 
     try {
-      final h = _horaInspeccion!;
-      final horaStr =
-          '${h.hour.toString().padLeft(2, '0')}:${h.minute.toString().padLeft(2, '0')}:00';
+      final api = context.read<ApiClient>();
 
       await api.createHydraulicStructure(
         token: token,
-        id: _idCtrl.text.trim(),
-        tipo: _selectedTipo!, // "Pozo" o "Sumidero"
+        id: _generatedId!,
+        tipo: _tipo!,
         fechaInspeccion: _fechaInspeccion!,
-        horaInspeccion: horaStr,
+        horaInspeccion: _formatHora(_horaInspeccion!)!,
         climaInspeccion: _climaCtrl.text.trim().isEmpty
             ? null
             : _climaCtrl.text.trim(),
         tipoVia: _tipoViaCtrl.text.trim().isEmpty
             ? null
             : _tipoViaCtrl.text.trim(),
-
-        // Pozo
         tipoSistema: _tipoSistemaCtrl.text.trim(),
         material: _materialCtrl.text.trim().isEmpty
             ? null
             : _materialCtrl.text.trim(),
-        conoReduccion: _conoReduccion,
-        alturaCono: _parseDouble(_alturaConoCtrl),
-        profundidadPozo: _parseDouble(_profundidadPozoCtrl),
-        diametroCamara: _parseDouble(_diametroCamaraCtrl),
-        elementosPozo: _elementosPozoCtrl.text.trim().isEmpty
-            ? null
-            : _elementosPozoCtrl.text.trim(),
-        estadoElemento: _estadoElementoCtrl.text.trim().isEmpty
-            ? null
-            : _estadoElementoCtrl.text.trim(),
-        materialElemento: _materialElementoCtrl.text.trim().isEmpty
-            ? null
-            : _materialElementoCtrl.text.trim(),
 
-        // Compartidos extra
+        // Pozo
+        conoReduccion: _tipo == 'Pozo' ? _conoReduccion : null,
+        alturaCono: _tipo == 'Pozo' ? _toDouble(_alturaConoCtrl.text) : null,
+        profundidadPozo: _tipo == 'Pozo'
+            ? _toDouble(_profundidadPozoCtrl.text)
+            : null,
+        diametroCamara: _tipo == 'Pozo'
+            ? _toDouble(_diametroCamaraCtrl.text)
+            : null,
+
+        // Compartidos
         sedimentacion: _sedimentacion,
         coberturaTuberiaSalida: _coberturaTuberiaSalida,
         depositoPredomina: _depositoPredominaCtrl.text.trim().isEmpty
@@ -263,523 +248,440 @@ class _CreateHydraulicStructureScreenState
             : _depositoPredominaCtrl.text.trim(),
         flujoRepresado: _flujoRepresado,
         nivelCubreCotaSalida: _nivelCubreCotaSalida,
-        cotaEstructura: _parseDouble(_cotaEstructuraCtrl),
-        condicionesInvestiga: _condicionesCtrl.text.trim().isEmpty
+        cotaEstructura: _toDouble(_cotaEstructuraCtrl.text),
+        condicionesInvestiga: _condicionesInvestigaCtrl.text.trim().isEmpty
             ? null
-            : _condicionesCtrl.text.trim(),
+            : _condicionesInvestigaCtrl.text.trim(),
         observaciones: _observacionesCtrl.text.trim().isEmpty
             ? null
             : _observacionesCtrl.text.trim(),
 
         // Sumidero
-        tipoSumidero:
-            _selectedTipo == 'Sumidero' &&
-                _tipoSumideroCtrl.text.trim().isNotEmpty
-            ? _tipoSumideroCtrl.text.trim()
+        tipoSumidero: _tipo == 'Sumidero'
+            ? (_tipoSumideroCtrl.text.trim().isEmpty
+                  ? null
+                  : _tipoSumideroCtrl.text.trim())
             : null,
-        anchoSumidero: _selectedTipo == 'Sumidero'
-            ? _parseDouble(_anchoSumideroCtrl)
+        anchoSumidero: _tipo == 'Sumidero'
+            ? _toDouble(_anchoSumideroCtrl.text)
             : null,
-        largoSumidero: _selectedTipo == 'Sumidero'
-            ? _parseDouble(_largoSumideroCtrl)
+        largoSumidero: _tipo == 'Sumidero'
+            ? _toDouble(_largoSumideroCtrl.text)
             : null,
-        alturaSumidero: _selectedTipo == 'Sumidero'
-            ? _parseDouble(_alturaSumideroCtrl)
+        alturaSumidero: _tipo == 'Sumidero'
+            ? _toDouble(_alturaSumideroCtrl.text)
             : null,
-        materialSumidero: _selectedTipo == 'Sumidero'
-            ? _parseDouble(_materialSumideroCtrl)
+        materialSumidero: _tipo == 'Sumidero'
+            ? (_materialSumideroCtrl.text.trim().isEmpty
+                  ? null
+                  : _materialSumideroCtrl.text.trim())
             : null,
-        anchoRejilla: _selectedTipo == 'Sumidero'
-            ? _parseDouble(_anchoRejillaCtrl)
+        anchoRejilla: _tipo == 'Sumidero'
+            ? _toDouble(_anchoRejillaCtrl.text)
             : null,
-        largoRejilla: _selectedTipo == 'Sumidero'
-            ? _parseDouble(_largoRejillaCtrl)
+        largoRejilla: _tipo == 'Sumidero'
+            ? _toDouble(_largoRejillaCtrl.text)
             : null,
-        alturaRejilla: _selectedTipo == 'Sumidero'
-            ? _parseDouble(_alturaRejillaCtrl)
+        alturaRejilla: _tipo == 'Sumidero'
+            ? _toDouble(_alturaRejillaCtrl.text)
             : null,
-        materialRejilla:
-            _selectedTipo == 'Sumidero' &&
-                _materialRejillaCtrl.text.trim().isNotEmpty
-            ? _materialRejillaCtrl.text.trim()
+        materialRejilla: _tipo == 'Sumidero'
+            ? (_materialRejillaCtrl.text.trim().isEmpty
+                  ? null
+                  : _materialRejillaCtrl.text.trim())
             : null,
 
-        idProyecto: serverProjectId,
+        idProyecto: serverId,
       );
 
-      if (!mounted) return;
-      setState(() => _saving = false);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Estructura hidráulica creada correctamente.'),
-        ),
-      );
-
-      Navigator.pop(context);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Estructura creada correctamente')),
+        );
+        Navigator.pop(context);
+      }
     } catch (e) {
-      if (!mounted) return;
-      setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al guardar estructura: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error al guardar: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+        });
+      }
     }
   }
+
+  // ---------- UI ----------
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final fechaText = _fechaInspeccion == null
-        ? 'Seleccionar fecha'
-        : '${_fechaInspeccion!.day.toString().padLeft(2, '0')}/'
-              '${_fechaInspeccion!.month.toString().padLeft(2, '0')}/'
-              '${_fechaInspeccion!.year}';
-
-    final horaText = _horaInspeccion == null
-        ? 'Seleccionar hora'
-        : '${_horaInspeccion!.hour.toString().padLeft(2, '0')}:'
-              '${_horaInspeccion!.minute.toString().padLeft(2, '0')}';
-
     return Scaffold(
-      appBar: AppBar(title: const Text('Nueva estructura hidráulica')),
+      appBar: AppBar(title: const Text('Agregar estructura hidráulica')),
       body: SafeArea(
-        child: Center(
+        child: Form(
+          key: _formKey,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Tipo + ID
+                Row(
                   children: [
-                    Text(
-                      'Proyecto: ${widget.project['nombre'] ?? ''}',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: Colors.blueGrey[900],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // ID
-                    TextFormField(
-                      controller: _idCtrl,
-                      readOnly: true,
-                      decoration: InputDecoration(
-                        labelText: 'ID de la estructura',
-                        helperText:
-                            'Se genera automáticamente según el tipo (pz/sm).',
-                        prefixIcon: const Icon(Icons.tag),
-                        suffixIcon: _loadingId
-                            ? const Padding(
-                                padding: EdgeInsets.all(10.0),
-                                child: SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                ),
-                              )
-                            : null,
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Primero selecciona el tipo para generar el ID';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 12),
-
-                    DropdownButtonFormField<String>(
-                      decoration: const InputDecoration(
-                        labelText: 'Tipo de estructura',
-                        prefixIcon: Icon(Icons.category),
-                      ),
-                      value: _selectedTipo,
-                      items: const [
-                        DropdownMenuItem(value: 'Pozo', child: Text('Pozo')),
-                        DropdownMenuItem(
-                          value: 'Sumidero',
-                          child: Text('Sumidero'),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _tipo,
+                        decoration: const InputDecoration(
+                          labelText: 'Tipo de estructura',
                         ),
-                      ],
-                      onChanged: (value) {
-                        if (value != null) {
-                          _onTipoChanged(value);
-                        }
-                      },
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Selecciona el tipo de estructura';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    Text(
-                      'Datos de inspección',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
+                        items: const [
+                          DropdownMenuItem(value: 'Pozo', child: Text('Pozo')),
+                          DropdownMenuItem(
+                            value: 'Sumidero',
+                            child: Text('Sumidero'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            _tipo = value;
+                          });
+                          _fetchNextId();
+                        },
                       ),
                     ),
-                    const SizedBox(height: 8),
-
-                    ListTile(
-                      leading: const Icon(Icons.date_range),
-                      title: const Text('Fecha de inspección'),
-                      subtitle: Text(fechaText),
-                      onTap: _pickFecha,
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.access_time),
-                      title: const Text('Hora de inspección'),
-                      subtitle: Text(horaText),
-                      onTap: _pickHora,
-                    ),
-
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _climaCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Clima durante la inspección',
-                        prefixIcon: Icon(Icons.cloud),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _tipoViaCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Tipo de vía',
-                        prefixIcon: Icon(Icons.alt_route),
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-                    Text(
-                      'Pozo',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-
-                    TextFormField(
-                      controller: _tipoSistemaCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Tipo de sistema',
-                        prefixIcon: Icon(Icons.account_tree),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Ingresa el tipo de sistema';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 12),
-
-                    TextFormField(
-                      controller: _materialCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Material (pozo)',
-                        prefixIcon: Icon(Icons.construction),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    SwitchListTile(
-                      title: const Text('Cono de reducción'),
-                      value: _conoReduccion,
-                      onChanged: (v) => setState(() => _conoReduccion = v),
-                    ),
-                    const SizedBox(height: 8),
-
-                    TextFormField(
-                      controller: _alturaConoCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Altura del cono (m)',
-                        prefixIcon: Icon(Icons.straighten),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    TextFormField(
-                      controller: _profundidadPozoCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Profundidad del pozo (m)',
-                        prefixIcon: Icon(Icons.straighten),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    TextFormField(
-                      controller: _diametroCamaraCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Diámetro de cámara (m)',
-                        prefixIcon: Icon(Icons.circle_outlined),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    TextFormField(
-                      controller: _elementosPozoCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Elementos del pozo',
-                        prefixIcon: Icon(Icons.list),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    TextFormField(
-                      controller: _estadoElementoCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Estado del elemento',
-                        prefixIcon: Icon(Icons.report_problem),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    TextFormField(
-                      controller: _materialElementoCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Material del elemento',
-                        prefixIcon: Icon(Icons.construction),
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-                    Text(
-                      'Condición hidráulica (compartido)',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-
-                    SwitchListTile(
-                      title: const Text('Sedimentación'),
-                      value: _sedimentacion,
-                      onChanged: (v) => setState(() => _sedimentacion = v),
-                    ),
-                    SwitchListTile(
-                      title: const Text('Cobertura en tubería de salida'),
-                      value: _coberturaTuberiaSalida,
-                      onChanged: (v) =>
-                          setState(() => _coberturaTuberiaSalida = v),
-                    ),
-                    SwitchListTile(
-                      title: const Text('Flujo represado'),
-                      value: _flujoRepresado,
-                      onChanged: (v) => setState(() => _flujoRepresado = v),
-                    ),
-                    SwitchListTile(
-                      title: const Text('Nivel cubre cota de salida'),
-                      value: _nivelCubreCotaSalida,
-                      onChanged: (v) =>
-                          setState(() => _nivelCubreCotaSalida = v),
-                    ),
-
-                    TextFormField(
-                      controller: _cotaEstructuraCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Cota de estructura (m)',
-                        prefixIcon: Icon(Icons.height),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    TextFormField(
-                      controller: _depositoPredominaCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Depósito que predomina',
-                        prefixIcon: Icon(Icons.layers),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    TextFormField(
-                      controller: _condicionesCtrl,
-                      maxLines: 3,
-                      decoration: const InputDecoration(
-                        labelText: 'Condiciones de investigación',
-                        alignLabelWithHint: true,
-                        prefixIcon: Icon(Icons.description),
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-                    Text(
-                      'Sumidero',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-
-                    TextFormField(
-                      controller: _tipoSumideroCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Tipo de sumidero',
-                        prefixIcon: Icon(Icons.grain),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    TextFormField(
-                      controller: _anchoSumideroCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Ancho del sumidero (m)',
-                        prefixIcon: Icon(Icons.straighten),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    TextFormField(
-                      controller: _largoSumideroCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Largo del sumidero (m)',
-                        prefixIcon: Icon(Icons.straighten),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    TextFormField(
-                      controller: _alturaSumideroCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Altura del sumidero (m)',
-                        prefixIcon: Icon(Icons.height),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    TextFormField(
-                      controller: _materialSumideroCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Material sumidero (valor)',
-                        prefixIcon: Icon(Icons.numbers),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    TextFormField(
-                      controller: _anchoRejillaCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Ancho de rejilla (m)',
-                        prefixIcon: Icon(Icons.straighten),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    TextFormField(
-                      controller: _largoRejillaCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Largo de rejilla (m)',
-                        prefixIcon: Icon(Icons.straighten),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    TextFormField(
-                      controller: _alturaRejillaCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Altura de rejilla (m)',
-                        prefixIcon: Icon(Icons.height),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    TextFormField(
-                      controller: _materialRejillaCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Material de rejilla',
-                        prefixIcon: Icon(Icons.construction),
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-                    TextFormField(
-                      controller: _observacionesCtrl,
-                      maxLines: 3,
-                      decoration: const InputDecoration(
-                        labelText: 'Observaciones',
-                        alignLabelWithHint: true,
-                        prefixIcon: Icon(Icons.notes),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: _saving ? null : _submit,
-                        icon: _saving
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(Icons.save),
-                        label: const Text('Guardar estructura'),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // 🔹 NUEVO BOTÓN: Agregar fotografía (sin funcionalidad)
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: _saving
-                            ? null
-                            : () {
-                                // Aquí luego conectaremos la lógica de fotos
-                              },
-                        icon: const Icon(Icons.photo_camera),
-                        label: const Text('Agregar fotografía'),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        readOnly: true,
+                        decoration: InputDecoration(
+                          labelText: 'ID',
+                          hintText: _generatedId ?? 'Generando...',
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ),
+
+                const SizedBox(height: 16),
+
+                // Fecha y hora
+                Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: _pickFecha,
+                        child: InputDecorator(
+                          decoration: const InputDecoration(
+                            labelText: 'Fecha de inspección',
+                          ),
+                          child: Text(
+                            _fechaInspeccion == null
+                                ? 'Seleccionar'
+                                : '${_fechaInspeccion!.day.toString().padLeft(2, "0")}/'
+                                      '${_fechaInspeccion!.month.toString().padLeft(2, "0")}/'
+                                      '${_fechaInspeccion!.year}',
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: InkWell(
+                        onTap: _pickHora,
+                        child: InputDecorator(
+                          decoration: const InputDecoration(
+                            labelText: 'Hora de inspección',
+                          ),
+                          child: Text(
+                            _horaInspeccion == null
+                                ? 'Seleccionar'
+                                : _horaInspeccion!.format(context),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+
+                TextFormField(
+                  controller: _climaCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Clima de inspección',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _tipoViaCtrl,
+                  decoration: const InputDecoration(labelText: 'Tipo de vía'),
+                ),
+
+                const SizedBox(height: 16),
+                Text(
+                  'Datos generales',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                TextFormField(
+                  controller: _tipoSistemaCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Tipo de sistema',
+                  ),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Requerido' : null,
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _materialCtrl,
+                  decoration: const InputDecoration(labelText: 'Material'),
+                ),
+
+                const SizedBox(height: 16),
+
+                // ------ Sección Pozo ------
+                if (_tipo == 'Pozo') ...[
+                  Text(
+                    'Pozo',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SwitchListTile(
+                    title: const Text('Cono de reducción'),
+                    value: _conoReduccion,
+                    onChanged: (v) {
+                      setState(() {
+                        _conoReduccion = v;
+                      });
+                    },
+                  ),
+                  TextFormField(
+                    controller: _alturaConoCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Altura del cono (m)',
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _profundidadPozoCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Profundidad del pozo (m)',
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _diametroCamaraCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Diámetro de la cámara (m)',
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // ------ Sección Sumidero ------
+                if (_tipo == 'Sumidero') ...[
+                  Text(
+                    'Sumidero',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _tipoSumideroCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Tipo de sumidero',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _anchoSumideroCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Ancho del sumidero (m)',
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _largoSumideroCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Largo del sumidero (m)',
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _alturaSumideroCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Altura del sumidero (m)',
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _materialSumideroCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Material del sumidero',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _anchoRejillaCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Ancho de la rejilla (m)',
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _largoRejillaCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Largo de la rejilla (m)',
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _alturaRejillaCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Altura de la rejilla (m)',
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _materialRejillaCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Material de la rejilla',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // ------ Compartidos extra ------
+                Text(
+                  'Condiciones adicionales',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SwitchListTile(
+                  title: const Text('Sedimentación'),
+                  value: _sedimentacion,
+                  onChanged: (v) {
+                    setState(() {
+                      _sedimentacion = v;
+                    });
+                  },
+                ),
+                SwitchListTile(
+                  title: const Text('Cobertura tubería salida'),
+                  value: _coberturaTuberiaSalida,
+                  onChanged: (v) {
+                    setState(() {
+                      _coberturaTuberiaSalida = v;
+                    });
+                  },
+                ),
+                SwitchListTile(
+                  title: const Text('Flujo represado'),
+                  value: _flujoRepresado,
+                  onChanged: (v) {
+                    setState(() {
+                      _flujoRepresado = v;
+                    });
+                  },
+                ),
+                SwitchListTile(
+                  title: const Text('Nivel cubre cota salida'),
+                  value: _nivelCubreCotaSalida,
+                  onChanged: (v) {
+                    setState(() {
+                      _nivelCubreCotaSalida = v;
+                    });
+                  },
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _depositoPredominaCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Depósito que predomina',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _cotaEstructuraCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Cota de la estructura (m)',
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _condicionesInvestigaCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Condiciones investigadas',
+                  ),
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _observacionesCtrl,
+                  decoration: const InputDecoration(labelText: 'Observaciones'),
+                  maxLines: 3,
+                ),
+
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _saving ? null : _save,
+                    icon: _saving
+                        ? const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save),
+                    label: const Text('Guardar estructura'),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
