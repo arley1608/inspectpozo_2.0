@@ -216,6 +216,11 @@ class _HydraulicStructuresScreenState extends State<HydraulicStructuresScreen> {
                                           builder: (_) =>
                                               EditHydraulicStructureScreen(
                                                 structure: e,
+                                                project: {
+                                                  'serverId':
+                                                      widget.projectServerId,
+                                                  'nombre': widget.projectName,
+                                                },
                                               ),
                                         ),
                                       );
