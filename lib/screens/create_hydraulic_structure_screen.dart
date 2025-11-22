@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
+import 'create_photo_record_screen.dart';
 
 class CreateHydraulicStructureScreen extends StatefulWidget {
   final Map<String, dynamic> project;
@@ -63,6 +64,7 @@ class _CreateHydraulicStructureScreenState
   final _materialRejillaCtrl = TextEditingController();
 
   bool _saving = false;
+  bool _photosCompleted = false; // controla si ya se hicieron las 4 fotos
 
   @override
   void initState() {
@@ -187,6 +189,18 @@ class _CreateHydraulicStructureScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Debes seleccionar fecha y hora de inspección'),
+        ),
+      );
+      return;
+    }
+
+    // Bloquear si no se ha completado el registro fotográfico
+    if (!_photosCompleted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Debes completar el registro fotográfico (4 fotos) antes de guardar la estructura.',
+          ),
         ),
       );
       return;
@@ -744,6 +758,7 @@ class _CreateHydraulicStructureScreenState
                       _sedimentacion = v;
                       if (!_sedimentacion) {
                         _coberturaTuberiaSalida = false;
+                        _depositoPredominaCtrl.text = '';
                       }
                     });
                   },
@@ -783,31 +798,36 @@ class _CreateHydraulicStructureScreenState
                 const SizedBox(height: 8),
 
                 // ====== DEPÓSITO QUE PREDOMINA (DROPDOWN) ======
-                DropdownButtonFormField<String>(
-                  value: _depositoPredominaCtrl.text.isEmpty
-                      ? null
-                      : _depositoPredominaCtrl.text,
-                  decoration: const InputDecoration(
-                    labelText: 'Depósito que predomina',
+                if (_sedimentacion) ...[
+                  DropdownButtonFormField<String>(
+                    value: _depositoPredominaCtrl.text.isEmpty
+                        ? null
+                        : _depositoPredominaCtrl.text,
+                    decoration: const InputDecoration(
+                      labelText: 'Depósito que predomina',
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'Basuras',
+                        child: Text('Basuras'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Arcillas y lodos',
+                        child: Text('Arcillas y lodos'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Arenas y gravillas',
+                        child: Text('Arenas y gravillas'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _depositoPredominaCtrl.text = value ?? '';
+                      });
+                    },
                   ),
-                  items: const [
-                    DropdownMenuItem(value: 'Basuras', child: Text('Basuras')),
-                    DropdownMenuItem(
-                      value: 'Arcillas y lodos',
-                      child: Text('Arcillas y lodos'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'Arenas y gravillas',
-                      child: Text('Arenas y gravillas'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    setState(() {
-                      _depositoPredominaCtrl.text = value ?? '';
-                    });
-                  },
-                ),
-                const SizedBox(height: 8),
+                  const SizedBox(height: 8),
+                ],
 
                 TextFormField(
                   controller: _cotaEstructuraCtrl,
@@ -850,34 +870,53 @@ class _CreateHydraulicStructureScreenState
                 ),
 
                 const SizedBox(height: 24),
-
-                // ====== BOTONES INFERIORES ======
                 SizedBox(
                   width: double.infinity,
-                  child: Column(
-                    children: [
-                      FilledButton.icon(
-                        onPressed: () {
-                          // Sin funcionalidad por ahora
-                        },
-                        icon: const Icon(Icons.photo_camera),
-                        label: const Text('Agregar fotografía'),
-                      ),
-                      const SizedBox(height: 8),
-                      FilledButton.icon(
-                        onPressed: _saving ? null : _save,
-                        icon: _saving
-                            ? const SizedBox(
-                                height: 18,
-                                width: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
+                  child: FilledButton.icon(
+                    onPressed: (_saving || !_photosCompleted) ? null : _save,
+                    icon: _saving
+                        ? const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save),
+                    label: const Text('Guardar estructura'),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _generatedId == null
+                        ? null
+                        : () async {
+                            final result = await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => CreatePhotoRecordScreen(
+                                  estructuraId: _generatedId!,
+                                  estructuraLabel:
+                                      '${_generatedId!} - ${_tipo ?? ''}',
                                 ),
-                              )
-                            : const Icon(Icons.save),
-                        label: const Text('Guardar estructura'),
-                      ),
-                    ],
+                              ),
+                            );
+
+                            if (result == true && mounted) {
+                              setState(() {
+                                _photosCompleted = true;
+                              });
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Registro fotográfico completado. Ya puedes guardar la estructura.',
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                    icon: const Icon(Icons.photo_camera),
+                    label: const Text('Agregar fotografía'),
                   ),
                 ),
               ],
