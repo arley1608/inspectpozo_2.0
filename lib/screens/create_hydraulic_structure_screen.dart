@@ -850,18 +850,34 @@ class _CreateHydraulicStructureScreenState
                 ),
 
                 const SizedBox(height: 24),
+
+                // ====== BOTONES INFERIORES ======
                 SizedBox(
                   width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: _saving ? null : _save,
-                    icon: _saving
-                        ? const SizedBox(
-                            height: 18,
-                            width: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.save),
-                    label: const Text('Guardar estructura'),
+                  child: Column(
+                    children: [
+                      FilledButton.icon(
+                        onPressed: () {
+                          // Sin funcionalidad por ahora
+                        },
+                        icon: const Icon(Icons.photo_camera),
+                        label: const Text('Agregar fotografía'),
+                      ),
+                      const SizedBox(height: 8),
+                      FilledButton.icon(
+                        onPressed: _saving ? null : _save,
+                        icon: _saving
+                            ? const SizedBox(
+                                height: 18,
+                                width: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.save),
+                        label: const Text('Guardar estructura'),
+                      ),
+                    ],
                   ),
                 ),
               ],

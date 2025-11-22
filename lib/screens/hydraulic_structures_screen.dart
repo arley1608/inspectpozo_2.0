@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import 'edit_hydraulic_structure_screen.dart';
+import 'hydraulic_structure_detail_screen.dart'; // 👈 NUEVO
 
 class HydraulicStructuresScreen extends StatefulWidget {
   final int projectServerId;
@@ -202,7 +203,14 @@ class _HydraulicStructuresScreenState extends State<HydraulicStructuresScreen> {
                             children: [
                               OutlinedButton.icon(
                                 onPressed: () {
-                                  // TODO: Gestionar estructura
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          HydraulicStructureDetailScreen(
+                                            structure: e,
+                                          ),
+                                    ),
+                                  );
                                 },
                                 icon: const Icon(Icons.manage_accounts),
                                 label: const Text('Gestionar'),

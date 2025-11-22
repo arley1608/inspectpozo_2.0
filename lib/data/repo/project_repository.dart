@@ -111,4 +111,28 @@ class ProjectRepository {
   Future<void> deleteLocalProjectById(int id) async {
     await db.deleteProjectById(id);
   }
+
+  /// 🔹 NUEVO: actualizar el proyecto en la base de datos local
+  /// después de haberlo actualizado en el servidor.
+  Future<void> updateLocalProjectFields({
+    required int localId,
+    required String nombre,
+    String? contrato,
+    String? contratante,
+    String? contratista,
+    String? encargado,
+  }) async {
+    await (db.update(
+      db.projects,
+    )..where((tbl) => tbl.id.equals(localId))).write(
+      ProjectsCompanion(
+        nombre: Value(nombre),
+        contrato: Value(contrato),
+        contratante: Value(contratante),
+        contratista: Value(contratista),
+        encargado: Value(encargado),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
 }

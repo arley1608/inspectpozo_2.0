@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../data/local/app_database.dart';
+import '../data/repo/project_repository.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 
@@ -16,6 +17,7 @@ class EditProjectScreen extends StatefulWidget {
 
 class _EditProjectScreenState extends State<EditProjectScreen> {
   final _formKey = GlobalKey<FormState>();
+
   late TextEditingController _nombreCtrl;
   late TextEditingController _contratoCtrl;
   late TextEditingController _contratanteCtrl;
@@ -27,6 +29,7 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
   @override
   void initState() {
     super.initState();
+
     _nombreCtrl = TextEditingController(text: widget.project.nombre);
     _contratoCtrl = TextEditingController(text: widget.project.contrato ?? '');
     _contratanteCtrl = TextEditingController(
@@ -53,69 +56,67 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final auth = context.read<AuthService>();
+    final projectRepo = context.read<ProjectRepository>();
     final api = context.read<ApiClient>();
-
-    final token = auth.token;
-    if (token == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Sesión inválida, inicia sesión de nuevo.'),
-        ),
-      );
-      return;
-    }
-
-    final serverId = widget.project.serverId;
-    if (serverId == null) {
-      // Si el proyecto aún no está sincronizado con el servidor
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Este proyecto aún no está sincronizado con el servidor. '
-            'Primero sincronízalo antes de modificarlo allí.',
-          ),
-        ),
-      );
-      return;
-    }
+    final auth = context.read<AuthService>();
 
     setState(() => _saving = true);
 
+    final String nombre = _nombreCtrl.text.trim();
+    final String? contrato = _contratoCtrl.text.trim().isEmpty
+        ? null
+        : _contratoCtrl.text.trim();
+    final String? contratante = _contratanteCtrl.text.trim().isEmpty
+        ? null
+        : _contratanteCtrl.text.trim();
+    final String? contratista = _contratistaCtrl.text.trim().isEmpty
+        ? null
+        : _contratistaCtrl.text.trim();
+    final String? encargado = _encargadoCtrl.text.trim().isEmpty
+        ? null
+        : _encargadoCtrl.text.trim();
+
     try {
-      // Actualizar proyecto en el servidor
-      await api.updateProject(
-        token: token,
-        serverId: serverId,
-        nombre: _nombreCtrl.text.trim(),
-        contrato: _contratoCtrl.text.trim().isEmpty
-            ? null
-            : _contratoCtrl.text.trim(),
-        contratante: _contratanteCtrl.text.trim().isEmpty
-            ? null
-            : _contratanteCtrl.text.trim(),
-        contratista: _contratistaCtrl.text.trim().isEmpty
-            ? null
-            : _contratistaCtrl.text.trim(),
-        encargado: _encargadoCtrl.text.trim().isEmpty
-            ? null
-            : _encargadoCtrl.text.trim(),
+      // 1) Si hay serverId y token, actualizamos en el servidor
+      final token = auth.token;
+      final serverId = widget.project.serverId;
+
+      if (token != null && serverId != null) {
+        await api.updateProject(
+          token: token,
+          serverId: serverId,
+          nombre: nombre,
+          contrato: contrato,
+          contratante: contratante,
+          contratista: contratista,
+          encargado: encargado,
+        );
+      }
+
+      // 2) Siempre actualizamos el registro local
+      await projectRepo.updateLocalProjectFields(
+        localId: widget.project.id,
+        nombre: nombre,
+        contrato: contrato,
+        contratante: contratante,
+        contratista: contratista,
+        encargado: encargado,
       );
 
       if (!mounted) return;
+
       setState(() => _saving = false);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Proyecto actualizado correctamente en el servidor.'),
-        ),
+        const SnackBar(content: Text('Proyecto actualizado correctamente')),
       );
 
-      // Avisamos a la pantalla anterior para que recargue la lista
-      Navigator.pop(context, true);
+      // Volvemos pasando true para que el listado refresque
+      Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error al actualizar proyecto: $e')),
       );
@@ -146,6 +147,8 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
+
+                    // Nombre
                     TextFormField(
                       controller: _nombreCtrl,
                       decoration: const InputDecoration(
@@ -160,6 +163,8 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                       },
                     ),
                     const SizedBox(height: 12),
+
+                    // Contrato
                     TextFormField(
                       controller: _contratoCtrl,
                       decoration: const InputDecoration(
@@ -168,6 +173,8 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
+
+                    // Contratante
                     TextFormField(
                       controller: _contratanteCtrl,
                       decoration: const InputDecoration(
@@ -176,6 +183,8 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
+
+                    // Contratista
                     TextFormField(
                       controller: _contratistaCtrl,
                       decoration: const InputDecoration(
@@ -184,6 +193,8 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
+
+                    // Encargado
                     TextFormField(
                       controller: _encargadoCtrl,
                       decoration: const InputDecoration(
@@ -191,7 +202,9 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                         prefixIcon: Icon(Icons.engineering),
                       ),
                     ),
+
                     const SizedBox(height: 24),
+
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton.icon(
