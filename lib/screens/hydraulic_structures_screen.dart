@@ -46,6 +46,64 @@ class _HydraulicStructuresScreenState extends State<HydraulicStructuresScreen> {
     );
   }
 
+  Future<void> _deleteStructure(String estructuraId) async {
+    final api = context.read<ApiClient>();
+    final auth = context.read<AuthService>();
+    final token = auth.token;
+    final theme = Theme.of(context);
+
+    if (token == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sesión inválida, inicia sesión de nuevo.'),
+        ),
+      );
+      return;
+    }
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar estructura'),
+        content: Text(
+          '¿Seguro que deseas eliminar la estructura "$estructuraId"?\n\n'
+          'Esta acción es permanente.',
+          style: theme.textTheme.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true) return;
+
+    try {
+      await api.deleteHydraulicStructure(token: token, id: estructuraId);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error eliminando en servidor: $e')),
+      );
+      return;
+    }
+
+    _loadStructures();
+    if (mounted) setState(() {});
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Estructura eliminada correctamente')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -110,23 +168,65 @@ class _HydraulicStructuresScreenState extends State<HydraulicStructuresScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: ListTile(
-                      leading: const Icon(
-                        Icons.water_damage,
-                        color: Colors.blueGrey,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
                       ),
-                      title: Text(
-                        id,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: Colors.blueGrey[900],
-                        ),
-                      ),
-                      subtitle: Text(
-                        'Tipo: $tipo',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[700],
-                        ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ListTile(
+                            leading: const Icon(
+                              Icons.water_damage,
+                              color: Colors.blueGrey,
+                            ),
+                            title: Text(
+                              id,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.blueGrey[900],
+                              ),
+                            ),
+                            subtitle: Text(
+                              'Tipo: $tipo',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: () {
+                                  // TODO: Gestionar estructura
+                                },
+                                icon: const Icon(Icons.manage_accounts),
+                                label: const Text('Gestionar'),
+                              ),
+                              const SizedBox(width: 8),
+                              OutlinedButton.icon(
+                                onPressed: () {
+                                  // TODO: Modificar estructura
+                                },
+                                icon: const Icon(Icons.edit),
+                                label: const Text('Modificar'),
+                              ),
+                              const SizedBox(width: 8),
+                              TextButton.icon(
+                                onPressed: () => _deleteStructure(id),
+                                icon: const Icon(Icons.delete_outline),
+                                label: const Text('Eliminar'),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.red[700],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                        ],
                       ),
                     ),
                   );

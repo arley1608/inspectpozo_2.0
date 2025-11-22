@@ -211,7 +211,7 @@ class ApiClient {
     }
   }
 
-  /// 🔹 NUEVO: obtener lista de estructuras hidráulicas por proyecto
+  /// Obtener lista de estructuras hidráulicas por proyecto (online)
   Future<List<Map<String, dynamic>>> getHydraulicStructures({
     required String token,
     required int projectServerId,
@@ -229,5 +229,13 @@ class ApiClient {
     } else {
       throw Exception('Respuesta inesperada al obtener las estructuras');
     }
+  }
+
+  /// 🔹 Eliminar estructura hidráulica por ID (pz0001, sm0001, etc.)
+  Future<void> deleteHydraulicStructure({
+    required String token,
+    required String id,
+  }) async {
+    await dio.delete('/estructuras/$id', queryParameters: {'token': token});
   }
 }
