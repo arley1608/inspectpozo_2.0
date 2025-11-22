@@ -84,7 +84,6 @@ class ApiClient {
     await dio.delete('/proyectos/$serverId', queryParameters: {'token': token});
   }
 
-  /// Actualizar proyecto en el servidor
   Future<Map<String, dynamic>> updateProject({
     required String token,
     required int serverId,
@@ -121,6 +120,9 @@ class ApiClient {
     required String horaInspeccion, // "HH:mm:ss"
     String? climaInspeccion,
     String? tipoVia,
+
+    // 👉 NUEVO: geometría WKT
+    String? geometria,
 
     // Pozo
     required String tipoSistema,
@@ -166,6 +168,10 @@ class ApiClient {
         'hora_inspeccion': horaInspeccion,
         'clima_inspeccion': climaInspeccion,
         'tipo_via': tipoVia,
+
+        // 👉 Enviamos la geometría WKT al backend
+        'geometria': geometria,
+
         'tipo_sistema': tipoSistema,
         'material': material,
         'cono_reduccion': conoReduccion,
@@ -211,7 +217,6 @@ class ApiClient {
     }
   }
 
-  /// Obtener lista de estructuras hidráulicas por proyecto (online)
   Future<List<Map<String, dynamic>>> getHydraulicStructures({
     required String token,
     required int projectServerId,
@@ -231,11 +236,137 @@ class ApiClient {
     }
   }
 
-  /// 🔹 Eliminar estructura hidráulica por ID (pz0001, sm0001, etc.)
   Future<void> deleteHydraulicStructure({
     required String token,
     required String id,
   }) async {
     await dio.delete('/estructuras/$id', queryParameters: {'token': token});
+  }
+
+  /// 🔹 Actualizar TODOS los campos de una estructura hidráulica (excepto el id).
+  /// Los parámetros son opcionales para que puedas reutilizarlo también para ediciones parciales.
+  Future<Map<String, dynamic>> updateHydraulicStructure({
+    required String token,
+    required String id,
+
+    // Campos generales
+    String? tipo,
+    String? geometria,
+    String? fechaInspeccion, // "YYYY-MM-DD"
+    String? horaInspeccion, // "HH:mm:ss"
+    String? climaInspeccion,
+    String? tipoVia,
+
+    // Pozo / sistema
+    String? tipoSistema,
+    String? material,
+    bool? conoReduccion,
+    double? alturaCono,
+    double? profundidadPozo,
+    double? diametroCamara,
+
+    // Condiciones hidráulicas / sedimentos
+    bool? sedimentacion,
+    bool? coberturaTuberiaSalida,
+    String? depositoPredomina,
+    bool? flujoRepresado,
+    bool? nivelCubreCotaSalida,
+    double? cotaEstructura,
+    String? condicionesInvestiga,
+    String? observaciones,
+
+    // Sumidero
+    String? tipoSumidero,
+    double? anchoSumidero,
+    double? largoSumidero,
+    double? alturaSumidero,
+    String? materialSumidero,
+
+    // Rejilla
+    double? anchoRejilla,
+    double? largoRejilla,
+    double? alturaRejilla,
+    String? materialRejilla,
+
+    // Proyecto relacionado
+    int? idProyecto,
+  }) async {
+    final body = <String, dynamic>{};
+
+    // Generales
+    if (tipo != null) body['tipo'] = tipo;
+    if (geometria != null) body['geometria'] = geometria;
+    if (fechaInspeccion != null) {
+      body['fecha_inspeccion'] = fechaInspeccion;
+    }
+    if (horaInspeccion != null) {
+      body['hora_inspeccion'] = horaInspeccion;
+    }
+    if (climaInspeccion != null) {
+      body['clima_inspeccion'] = climaInspeccion;
+    }
+    if (tipoVia != null) body['tipo_via'] = tipoVia;
+
+    // Pozo / sistema
+    if (tipoSistema != null) body['tipo_sistema'] = tipoSistema;
+    if (material != null) body['material'] = material;
+    if (conoReduccion != null) body['cono_reduccion'] = conoReduccion;
+    if (alturaCono != null) body['altura_cono'] = alturaCono;
+    if (profundidadPozo != null) {
+      body['profundidad_pozo'] = profundidadPozo;
+    }
+    if (diametroCamara != null) {
+      body['diametro_camara'] = diametroCamara;
+    }
+
+    // Condiciones / sedimentos
+    if (sedimentacion != null) body['sedimentacion'] = sedimentacion;
+    if (coberturaTuberiaSalida != null) {
+      body['cobertura_tuberia_salida'] = coberturaTuberiaSalida;
+    }
+    if (depositoPredomina != null) {
+      body['deposito_predomina'] = depositoPredomina;
+    }
+    if (flujoRepresado != null) body['flujo_represado'] = flujoRepresado;
+    if (nivelCubreCotaSalida != null) {
+      body['nivel_cubre_cotasalida'] = nivelCubreCotaSalida;
+    }
+    if (cotaEstructura != null) {
+      body['cota_estructura'] = cotaEstructura;
+    }
+    if (condicionesInvestiga != null) {
+      body['condiciones_investiga'] = condicionesInvestiga;
+    }
+    if (observaciones != null) {
+      body['observaciones'] = observaciones;
+    }
+
+    // Sumidero
+    if (tipoSumidero != null) body['tipo_sumidero'] = tipoSumidero;
+    if (anchoSumidero != null) body['ancho_sumidero'] = anchoSumidero;
+    if (largoSumidero != null) body['largo_sumidero'] = largoSumidero;
+    if (alturaSumidero != null) body['altura_sumidero'] = alturaSumidero;
+    if (materialSumidero != null) {
+      body['material_sumidero'] = materialSumidero;
+    }
+
+    // Rejilla
+    if (anchoRejilla != null) body['ancho_rejilla'] = anchoRejilla;
+    if (largoRejilla != null) body['largo_rejilla'] = largoRejilla;
+    if (alturaRejilla != null) body['altura_rejilla'] = alturaRejilla;
+    if (materialRejilla != null) {
+      body['material_rejilla'] = materialRejilla;
+    }
+
+    // Proyecto
+    if (idProyecto != null) body['id_proyecto'] = idProyecto;
+
+    final res = await dio.put(
+      '/estructuras/$id',
+      queryParameters: {'token': token},
+      data: body,
+    );
+
+    return Map<String, dynamic>.from(res.data);
   }
 }

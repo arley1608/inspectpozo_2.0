@@ -27,6 +27,11 @@ class _CreateHydraulicStructureScreenState
 
   final _climaCtrl = TextEditingController();
   final _tipoViaCtrl = TextEditingController();
+
+  // Lat / Long
+  final _latitudCtrl = TextEditingController();
+  final _longitudCtrl = TextEditingController();
+
   final _tipoSistemaCtrl = TextEditingController();
   final _materialCtrl = TextEditingController();
 
@@ -71,6 +76,8 @@ class _CreateHydraulicStructureScreenState
   void dispose() {
     _climaCtrl.dispose();
     _tipoViaCtrl.dispose();
+    _latitudCtrl.dispose();
+    _longitudCtrl.dispose();
     _tipoSistemaCtrl.dispose();
     _materialCtrl.dispose();
     _depositoPredominaCtrl.dispose();
@@ -108,6 +115,14 @@ class _CreateHydraulicStructureScreenState
     final h = t.hour.toString().padLeft(2, '0');
     final m = t.minute.toString().padLeft(2, '0');
     return '$h:$m:00';
+  }
+
+  // 👉 Construir WKT POINT(long lat)
+  String? _buildGeometria() {
+    final lat = _toDouble(_latitudCtrl.text);
+    final lon = _toDouble(_longitudCtrl.text);
+    if (lat == null || lon == null) return null;
+    return 'POINT($lon $lat)';
   }
 
   Future<void> _pickFecha() async {
@@ -206,6 +221,9 @@ class _CreateHydraulicStructureScreenState
       return;
     }
 
+    // Construimos geometría WKT
+    final geometriaWkt = _buildGeometria();
+
     setState(() {
       _saving = true;
     });
@@ -225,6 +243,10 @@ class _CreateHydraulicStructureScreenState
         tipoVia: _tipoViaCtrl.text.trim().isEmpty
             ? null
             : _tipoViaCtrl.text.trim(),
+
+        // 👉 Enviamos geometría al backend
+        geometria: geometriaWkt,
+
         tipoSistema: _tipoSistemaCtrl.text.trim(),
         material: _materialCtrl.text.trim().isEmpty
             ? null
@@ -423,6 +445,25 @@ class _CreateHydraulicStructureScreenState
                   decoration: const InputDecoration(labelText: 'Tipo de vía'),
                 ),
 
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _latitudCtrl,
+                  decoration: const InputDecoration(labelText: 'Latitud'),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                    signed: true,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _longitudCtrl,
+                  decoration: const InputDecoration(labelText: 'Longitud'),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                    signed: true,
+                  ),
+                ),
+
                 const SizedBox(height: 16),
                 Text(
                   'Datos generales',
@@ -448,7 +489,6 @@ class _CreateHydraulicStructureScreenState
 
                 const SizedBox(height: 16),
 
-                // ------ Sección Pozo ------
                 if (_tipo == 'Pozo') ...[
                   Text(
                     'Pozo',
@@ -498,7 +538,6 @@ class _CreateHydraulicStructureScreenState
                   const SizedBox(height: 16),
                 ],
 
-                // ------ Sección Sumidero ------
                 if (_tipo == 'Sumidero') ...[
                   Text(
                     'Sumidero',
@@ -590,7 +629,6 @@ class _CreateHydraulicStructureScreenState
                   const SizedBox(height: 16),
                 ],
 
-                // ------ Compartidos extra ------
                 Text(
                   'Condiciones adicionales',
                   style: theme.textTheme.titleMedium?.copyWith(

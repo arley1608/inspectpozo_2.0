@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
+import 'edit_hydraulic_structure_screen.dart';
 
 class HydraulicStructuresScreen extends StatefulWidget {
   final int projectServerId;
@@ -208,8 +209,20 @@ class _HydraulicStructuresScreenState extends State<HydraulicStructuresScreen> {
                               ),
                               const SizedBox(width: 8),
                               OutlinedButton.icon(
-                                onPressed: () {
-                                  // TODO: Modificar estructura
+                                onPressed: () async {
+                                  final result = await Navigator.of(context)
+                                      .push(
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              EditHydraulicStructureScreen(
+                                                structure: e,
+                                              ),
+                                        ),
+                                      );
+                                  if (result == true) {
+                                    _loadStructures();
+                                    if (mounted) setState(() {});
+                                  }
                                 },
                                 icon: const Icon(Icons.edit),
                                 label: const Text('Modificar'),
