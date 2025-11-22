@@ -369,4 +369,53 @@ class ApiClient {
 
     return Map<String, dynamic>.from(res.data);
   }
+
+  // ---------- Tuberías ----------
+
+  Future<void> createPipe({
+    required String token,
+    required String id,
+    double? diametro,
+    String? material,
+    String? flujo,
+    String? estado,
+    required bool sedimento,
+    double? cotaClaveInicio,
+    double? cotaBateaInicio,
+    double? profundidadClaveInicio,
+    double? profundidadBateaInicio,
+    double? cotaClaveDestino,
+    double? cotaBateaDestino,
+    double? profundidadClaveDestino,
+    double? profundidadBateaDestino,
+    double? grados,
+    String? observaciones,
+    required String idEstructuraInicio,
+    required String idEstructuraDestino,
+  }) async {
+    await dio.post(
+      '/tuberias/',
+      queryParameters: {'token': token},
+      data: {
+        'id': id,
+        'diametro': diametro,
+        'material': material,
+        'flujo': flujo,
+        'estado': estado,
+        'sedimento': sedimento,
+        'cota_clave_inicio': cotaClaveInicio,
+        'cota_batea_inicio': cotaBateaInicio,
+        'profundidad_clave_inicio': profundidadClaveInicio,
+        'profundidad_batea_inicio': profundidadBateaInicio,
+        'cota_clave_destino': cotaClaveDestino,
+        'cota_batea_destino': cotaBateaDestino,
+        'profundidad_clave_destino': profundidadClaveDestino,
+        'profundidad_batea_destino': profundidadBateaDestino,
+        'grados': grados,
+        'observaciones': observaciones,
+        'id_estructura_inicio': idEstructuraInicio,
+        'id_estructura_destino': idEstructuraDestino,
+      },
+    );
+  }
 }

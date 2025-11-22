@@ -160,7 +160,7 @@ class ProjectManageScreen extends StatelessWidget {
 
                       const SizedBox(height: 12),
 
-                      // Nuevo botón blanco: ver estructuras hidráulicas (sin funcionalidad aún)
+                      // Botón blanco: ver estructuras hidráulicas
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
@@ -193,6 +193,26 @@ class ProjectManageScreen extends StatelessWidget {
                           },
                           icon: const Icon(Icons.list_alt),
                           label: const Text('Ver estructuras hidráulicas'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // === BOTÓN NUEVO: Generar diagrama de conexiones ===
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            // Sin funcionalidad por ahora
+                          },
+                          icon: const Icon(Icons.account_tree),
+                          label: const Text('Generar diagrama de conexiones'),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 24,
