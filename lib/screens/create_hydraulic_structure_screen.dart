@@ -27,13 +27,12 @@ class _CreateHydraulicStructureScreenState
 
   final _climaCtrl = TextEditingController();
   final _tipoViaCtrl = TextEditingController();
-
-  // Lat / Long
-  final _latitudCtrl = TextEditingController();
-  final _longitudCtrl = TextEditingController();
-
   final _tipoSistemaCtrl = TextEditingController();
   final _materialCtrl = TextEditingController();
+
+  // Coordenadas
+  final _longitudCtrl = TextEditingController();
+  final _latitudCtrl = TextEditingController();
 
   bool _sedimentacion = false;
   bool _coberturaTuberiaSalida = false;
@@ -76,10 +75,12 @@ class _CreateHydraulicStructureScreenState
   void dispose() {
     _climaCtrl.dispose();
     _tipoViaCtrl.dispose();
-    _latitudCtrl.dispose();
-    _longitudCtrl.dispose();
     _tipoSistemaCtrl.dispose();
     _materialCtrl.dispose();
+
+    _longitudCtrl.dispose();
+    _latitudCtrl.dispose();
+
     _depositoPredominaCtrl.dispose();
     _cotaEstructuraCtrl.dispose();
     _condicionesInvestigaCtrl.dispose();
@@ -115,14 +116,6 @@ class _CreateHydraulicStructureScreenState
     final h = t.hour.toString().padLeft(2, '0');
     final m = t.minute.toString().padLeft(2, '0');
     return '$h:$m:00';
-  }
-
-  // 👉 Construir WKT POINT(long lat)
-  String? _buildGeometria() {
-    final lat = _toDouble(_latitudCtrl.text);
-    final lon = _toDouble(_longitudCtrl.text);
-    if (lat == null || lon == null) return null;
-    return 'POINT($lon $lat)';
   }
 
   Future<void> _pickFecha() async {
@@ -169,6 +162,15 @@ class _CreateHydraulicStructureScreenState
     } catch (_) {
       // en caso de error dejamos el ID como está
     }
+  }
+
+  /// Construye el WKT a partir de longitud y latitud si ambos están presentes
+  String? _buildGeometryWkt() {
+    final lon = _longitudCtrl.text.trim();
+    final lat = _latitudCtrl.text.trim();
+    if (lon.isEmpty || lat.isEmpty) return null;
+    // WKT: POINT(longitud latitud)
+    return 'POINT($lon $lat)';
   }
 
   // ---------- Guardar estructura ----------
@@ -221,8 +223,7 @@ class _CreateHydraulicStructureScreenState
       return;
     }
 
-    // Construimos geometría WKT
-    final geometriaWkt = _buildGeometria();
+    final geometria = _buildGeometryWkt();
 
     setState(() {
       _saving = true;
@@ -243,10 +244,6 @@ class _CreateHydraulicStructureScreenState
         tipoVia: _tipoViaCtrl.text.trim().isEmpty
             ? null
             : _tipoViaCtrl.text.trim(),
-
-        // 👉 Enviamos geometría al backend
-        geometria: geometriaWkt,
-
         tipoSistema: _tipoSistemaCtrl.text.trim(),
         material: _materialCtrl.text.trim().isEmpty
             ? null
@@ -264,12 +261,16 @@ class _CreateHydraulicStructureScreenState
 
         // Compartidos
         sedimentacion: _sedimentacion,
-        coberturaTuberiaSalida: _coberturaTuberiaSalida,
+        coberturaTuberiaSalida: _sedimentacion
+            ? _coberturaTuberiaSalida
+            : null, // si no hay sedimentación, lo mandamos null
         depositoPredomina: _depositoPredominaCtrl.text.trim().isEmpty
             ? null
             : _depositoPredominaCtrl.text.trim(),
         flujoRepresado: _flujoRepresado,
-        nivelCubreCotaSalida: _nivelCubreCotaSalida,
+        nivelCubreCotaSalida: _flujoRepresado
+            ? _nivelCubreCotaSalida
+            : null, // si no hay flujo represado, lo mandamos null
         cotaEstructura: _toDouble(_cotaEstructuraCtrl.text),
         condicionesInvestiga: _condicionesInvestigaCtrl.text.trim().isEmpty
             ? null
@@ -314,6 +315,9 @@ class _CreateHydraulicStructureScreenState
             : null,
 
         idProyecto: serverId,
+
+        // Geometría (WKT)
+        geometria: geometria,
       );
 
       if (mounted) {
@@ -440,31 +444,63 @@ class _CreateHydraulicStructureScreenState
                   ),
                 ),
                 const SizedBox(height: 8),
-                TextFormField(
-                  controller: _tipoViaCtrl,
+
+                // ====== TIPO DE VÍA (DROPDOWN) ======
+                DropdownButtonFormField<String>(
+                  value: _tipoViaCtrl.text.isEmpty ? null : _tipoViaCtrl.text,
                   decoration: const InputDecoration(labelText: 'Tipo de vía'),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'Afirmado',
+                      child: Text('Afirmado'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Flexible',
+                      child: Text('Flexible'),
+                    ),
+                    DropdownMenuItem(value: 'Rígido', child: Text('Rígido')),
+                    DropdownMenuItem(value: 'Adoquín', child: Text('Adoquín')),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _tipoViaCtrl.text = value ?? '';
+                    });
+                  },
                 ),
 
                 const SizedBox(height: 8),
-                TextFormField(
-                  controller: _latitudCtrl,
-                  decoration: const InputDecoration(labelText: 'Latitud'),
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                    signed: true,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _longitudCtrl,
-                  decoration: const InputDecoration(labelText: 'Longitud'),
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                    signed: true,
-                  ),
+
+                // Longitud y Latitud
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _longitudCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Longitud',
+                        ),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                          signed: true,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _latitudCtrl,
+                        decoration: const InputDecoration(labelText: 'Latitud'),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                          signed: true,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
 
                 const SizedBox(height: 16),
+
                 Text(
                   'Datos generales',
                   style: theme.textTheme.titleMedium?.copyWith(
@@ -473,22 +509,61 @@ class _CreateHydraulicStructureScreenState
                 ),
                 const SizedBox(height: 8),
 
-                TextFormField(
-                  controller: _tipoSistemaCtrl,
+                // ====== TIPO DE SISTEMA (DROPDOWN) ======
+                DropdownButtonFormField<String>(
+                  value: _tipoSistemaCtrl.text.isEmpty
+                      ? null
+                      : _tipoSistemaCtrl.text,
                   decoration: const InputDecoration(
                     labelText: 'Tipo de sistema',
                   ),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Requerido' : null,
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'Residual',
+                      child: Text('Residual'),
+                    ),
+                    DropdownMenuItem(value: 'Lluvias', child: Text('Lluvias')),
+                    DropdownMenuItem(
+                      value: 'Combinado',
+                      child: Text('Combinado'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _tipoSistemaCtrl.text = value ?? '';
+                    });
+                  },
+                  validator: (value) => (value == null || value.trim().isEmpty)
+                      ? 'Requerido'
+                      : null,
                 ),
                 const SizedBox(height: 8),
-                TextFormField(
-                  controller: _materialCtrl,
+
+                // ====== MATERIAL (DROPDOWN) ======
+                DropdownButtonFormField<String>(
+                  value: _materialCtrl.text.isEmpty ? null : _materialCtrl.text,
                   decoration: const InputDecoration(labelText: 'Material'),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'Ladrillo',
+                      child: Text('Ladrillo'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Concreto',
+                      child: Text('Concreto'),
+                    ),
+                    DropdownMenuItem(value: 'Otro', child: Text('Otro')),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _materialCtrl.text = value ?? '';
+                    });
+                  },
                 ),
 
                 const SizedBox(height: 16),
 
+                // ------ Sección Pozo ------
                 if (_tipo == 'Pozo') ...[
                   Text(
                     'Pozo',
@@ -506,26 +581,28 @@ class _CreateHydraulicStructureScreenState
                       });
                     },
                   ),
-                  TextFormField(
-                    controller: _alturaConoCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Altura del cono (m)',
+                  if (_conoReduccion) ...[
+                    TextFormField(
+                      controller: _alturaConoCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Altura del cono (m)',
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                     ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _profundidadPozoCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Profundidad del pozo (m)',
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _profundidadPozoCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Profundidad del pozo (m)',
-                    ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
+                    const SizedBox(height: 8),
+                  ],
                   TextFormField(
                     controller: _diametroCamaraCtrl,
                     decoration: const InputDecoration(
@@ -538,6 +615,7 @@ class _CreateHydraulicStructureScreenState
                   const SizedBox(height: 16),
                 ],
 
+                // ------ Sección Sumidero ------
                 if (_tipo == 'Sumidero') ...[
                   Text(
                     'Sumidero',
@@ -546,13 +624,34 @@ class _CreateHydraulicStructureScreenState
                     ),
                   ),
                   const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _tipoSumideroCtrl,
+
+                  // ====== TIPO DE SUMIDERO (DROPDOWN) ======
+                  DropdownButtonFormField<String>(
+                    value: _tipoSumideroCtrl.text.isEmpty
+                        ? null
+                        : _tipoSumideroCtrl.text,
                     decoration: const InputDecoration(
                       labelText: 'Tipo de sumidero',
                     ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'Lateral',
+                        child: Text('Lateral'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Calzada',
+                        child: Text('Calzada'),
+                      ),
+                      DropdownMenuItem(value: 'Otro', child: Text('Otro')),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _tipoSumideroCtrl.text = value ?? '';
+                      });
+                    },
                   ),
                   const SizedBox(height: 8),
+
                   TextFormField(
                     controller: _anchoSumideroCtrl,
                     decoration: const InputDecoration(
@@ -629,6 +728,7 @@ class _CreateHydraulicStructureScreenState
                   const SizedBox(height: 16),
                 ],
 
+                // ------ Compartidos extra ------
                 Text(
                   'Condiciones adicionales',
                   style: theme.textTheme.titleMedium?.copyWith(
@@ -642,44 +742,73 @@ class _CreateHydraulicStructureScreenState
                   onChanged: (v) {
                     setState(() {
                       _sedimentacion = v;
+                      if (!_sedimentacion) {
+                        _coberturaTuberiaSalida = false;
+                      }
                     });
                   },
                 ),
-                SwitchListTile(
-                  title: const Text('Cobertura tubería salida'),
-                  value: _coberturaTuberiaSalida,
-                  onChanged: (v) {
-                    setState(() {
-                      _coberturaTuberiaSalida = v;
-                    });
-                  },
-                ),
+                if (_sedimentacion)
+                  SwitchListTile(
+                    title: const Text('Cobertura tubería salida'),
+                    value: _coberturaTuberiaSalida,
+                    onChanged: (v) {
+                      setState(() {
+                        _coberturaTuberiaSalida = v;
+                      });
+                    },
+                  ),
                 SwitchListTile(
                   title: const Text('Flujo represado'),
                   value: _flujoRepresado,
                   onChanged: (v) {
                     setState(() {
                       _flujoRepresado = v;
+                      if (!_flujoRepresado) {
+                        _nivelCubreCotaSalida = false;
+                      }
                     });
                   },
                 ),
-                SwitchListTile(
-                  title: const Text('Nivel cubre cota salida'),
-                  value: _nivelCubreCotaSalida,
-                  onChanged: (v) {
-                    setState(() {
-                      _nivelCubreCotaSalida = v;
-                    });
-                  },
-                ),
+                if (_flujoRepresado)
+                  SwitchListTile(
+                    title: const Text('Nivel cubre cota salida'),
+                    value: _nivelCubreCotaSalida,
+                    onChanged: (v) {
+                      setState(() {
+                        _nivelCubreCotaSalida = v;
+                      });
+                    },
+                  ),
                 const SizedBox(height: 8),
-                TextFormField(
-                  controller: _depositoPredominaCtrl,
+
+                // ====== DEPÓSITO QUE PREDOMINA (DROPDOWN) ======
+                DropdownButtonFormField<String>(
+                  value: _depositoPredominaCtrl.text.isEmpty
+                      ? null
+                      : _depositoPredominaCtrl.text,
                   decoration: const InputDecoration(
                     labelText: 'Depósito que predomina',
                   ),
+                  items: const [
+                    DropdownMenuItem(value: 'Basuras', child: Text('Basuras')),
+                    DropdownMenuItem(
+                      value: 'Arcillas y lodos',
+                      child: Text('Arcillas y lodos'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Arenas y gravillas',
+                      child: Text('Arenas y gravillas'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _depositoPredominaCtrl.text = value ?? '';
+                    });
+                  },
                 ),
                 const SizedBox(height: 8),
+
                 TextFormField(
                   controller: _cotaEstructuraCtrl,
                   decoration: const InputDecoration(
@@ -690,14 +819,30 @@ class _CreateHydraulicStructureScreenState
                   ),
                 ),
                 const SizedBox(height: 8),
-                TextFormField(
-                  controller: _condicionesInvestigaCtrl,
+
+                // ====== CONDICIONES INVESTIGADAS (DROPDOWN) ======
+                DropdownButtonFormField<String>(
+                  value: _condicionesInvestigaCtrl.text.isEmpty
+                      ? null
+                      : _condicionesInvestigaCtrl.text,
                   decoration: const InputDecoration(
-                    labelText: 'Condiciones investigadas',
+                    labelText: 'Condiciones de Investigación',
                   ),
-                  maxLines: 2,
+                  items: const [
+                    DropdownMenuItem(value: 'Exitoso', child: Text('Exitoso')),
+                    DropdownMenuItem(
+                      value: 'No exitoso',
+                      child: Text('No exitoso'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _condicionesInvestigaCtrl.text = value ?? '';
+                    });
+                  },
                 ),
                 const SizedBox(height: 8),
+
                 TextFormField(
                   controller: _observacionesCtrl,
                   decoration: const InputDecoration(labelText: 'Observaciones'),
