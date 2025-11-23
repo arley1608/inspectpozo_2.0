@@ -58,6 +58,9 @@ class _CreatePipeScreenState extends State<CreatePipeScreen> {
 
   bool _saving = false;
 
+  // ----- Carga de ID automático -----
+  bool _loadingId = false;
+
   @override
   void initState() {
     super.initState();
@@ -89,6 +92,11 @@ class _CreatePipeScreenState extends State<CreatePipeScreen> {
     _diametroCtrl.addListener(_recalcularCamposAutomaticos);
     _profClaveInicioCtrl.addListener(_recalcularCamposAutomaticos);
     _profClaveDestinoCtrl.addListener(_recalcularCamposAutomaticos);
+
+    // 👉 Cargar ID automático de tubería
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadNextPipeId();
+    });
   }
 
   @override
@@ -287,12 +295,62 @@ class _CreatePipeScreenState extends State<CreatePipeScreen> {
     }
   }
 
+  Future<void> _loadNextPipeId() async {
+    setState(() {
+      _loadingId = true;
+    });
+
+    final auth = context.read<AuthService>();
+    final api = context.read<ApiClient>();
+    final token = auth.token;
+
+    if (token == null) {
+      setState(() {
+        _loadingId = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sesión inválida, inicia sesión de nuevo.'),
+          ),
+        );
+      }
+      return;
+    }
+
+    try {
+      final nextId = await api.getNextPipeId(token: token);
+      if (!mounted) return;
+      setState(() {
+        _idCtrl.text = nextId;
+        _loadingId = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadingId = false;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error obteniendo ID: $e')));
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (_estructuraDestinoId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Selecciona la estructura de destino.')),
+      );
+      return;
+    }
+
+    if (_idCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo obtener el ID de la tubería.'),
+        ),
       );
       return;
     }
@@ -394,16 +452,29 @@ class _CreatePipeScreenState extends State<CreatePipeScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // ID tubería
+                    // ID tubería (auto, solo lectura)
                     TextFormField(
                       controller: _idCtrl,
-                      decoration: const InputDecoration(
+                      readOnly: true,
+                      decoration: InputDecoration(
                         labelText: 'ID de la tubería',
-                        prefixIcon: Icon(Icons.plumbing),
+                        prefixIcon: const Icon(Icons.plumbing),
+                        suffixIcon: _loadingId
+                            ? const Padding(
+                                padding: EdgeInsets.all(8.0),
+                                child: SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              )
+                            : null,
                       ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Ingresa un ID para la tubería';
+                      validator: (_) {
+                        if (_idCtrl.text.trim().isEmpty) {
+                          return 'No se pudo obtener un ID para la tubería';
                         }
                         return null;
                       },

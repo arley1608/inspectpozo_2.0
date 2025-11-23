@@ -498,4 +498,21 @@ class ApiClient {
   }) async {
     await dio.delete('/tuberias/$pipeId', queryParameters: {'token': token});
   }
+
+  /// 🔹 Obtener siguiente ID global de tubería (tubXXXX)
+  Future<String> getNextPipeId({required String token}) async {
+    final res = await dio.get(
+      '/tuberias/next-id',
+      queryParameters: {'token': token},
+    );
+
+    final data = res.data;
+    if (data is Map && data['id'] is String) {
+      return data['id'] as String;
+    } else {
+      throw Exception(
+        'Respuesta inesperada al solicitar el siguiente ID de tubería',
+      );
+    }
+  }
 }
