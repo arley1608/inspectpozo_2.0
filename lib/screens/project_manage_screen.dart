@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'hydraulic_structures_screen.dart';
 import 'create_hydraulic_structure_screen.dart';
+import 'connections_map_screen.dart'; // 👈 NUEVO
 
 class ProjectManageScreen extends StatelessWidget {
   final Map<String, dynamic> project;
@@ -204,12 +205,36 @@ class ProjectManageScreen extends StatelessWidget {
 
                       const SizedBox(height: 12),
 
-                      // === BOTÓN NUEVO: Generar diagrama de conexiones ===
+                      // === BOTÓN: Generar diagrama de conexiones ===
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
                           onPressed: () {
-                            // Sin funcionalidad por ahora
+                            final serverId = (project['serverId'] as int?);
+                            final nombreProyecto =
+                                (project['nombre'] as String?) ??
+                                'Proyecto sin nombre';
+
+                            if (serverId == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Este proyecto aún no está sincronizado con el servidor. '
+                                    'No es posible generar el diagrama de conexiones.',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => ConnectionsMapScreen(
+                                  projectServerId: serverId,
+                                  projectName: nombreProyecto,
+                                ),
+                              ),
+                            );
                           },
                           icon: const Icon(Icons.account_tree),
                           label: const Text('Generar diagrama de conexiones'),
