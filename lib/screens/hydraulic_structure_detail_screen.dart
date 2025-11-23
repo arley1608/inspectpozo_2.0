@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 // IMPORTANTE: debes crear este archivo después
 import 'create_pipe_screen.dart';
+import 'pipe_diagram_screen.dart';
 
 class HydraulicStructureDetailScreen extends StatelessWidget {
   final Map<String, dynamic> structure;
@@ -148,9 +149,13 @@ class HydraulicStructureDetailScreen extends StatelessWidget {
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Acción "Generar diagrama" pendiente.'),
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => PipeDiagramScreen(
+                        structureId: id,
+                        anglesDegrees:
+                            const [], // luego lo llenamos desde la BD
+                      ),
                     ),
                   );
                 },

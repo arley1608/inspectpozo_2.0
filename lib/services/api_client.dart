@@ -418,4 +418,25 @@ class ApiClient {
       },
     );
   }
+
+  // ---------- Tuberías: obtener por estructura ----------
+
+  Future<List<Map<String, dynamic>>> getPipesForStructure({
+    required String token,
+    required String estructuraId,
+  }) async {
+    final res = await dio.get(
+      '/tuberias/$estructuraId',
+      queryParameters: {'token': token},
+    );
+
+    final data = res.data;
+    if (data is List) {
+      return data
+          .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+    } else {
+      throw Exception('Respuesta inesperada al obtener tuberías');
+    }
+  }
 }
