@@ -1,7 +1,4 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../services/api_client.dart';
@@ -10,9 +7,10 @@ import '../services/auth_service.dart';
 class CreatePipeScreen extends StatefulWidget {
   /// Mapa completo de la estructura seleccionada en el detalle.
   /// Debe contener al menos:
-  /// - 'id'          → id de la estructura de inicio
-  /// - 'tipo'        → tipo de estructura (Pozo / Sumidero)
-  /// - 'id_proyecto' → id del proyecto en el servidor
+  /// - 'id'              → id de la estructura de inicio
+  /// - 'tipo'            → tipo de estructura (Pozo / Sumidero)
+  /// - 'id_proyecto'     → id del proyecto en el servidor
+  /// - 'cota_estructura' → cota de la estructura (m)
   final Map<String, dynamic> structure;
 
   const CreatePipeScreen({super.key, required this.structure});
@@ -28,13 +26,15 @@ class _CreatePipeScreenState extends State<CreatePipeScreen> {
   late final String _estructuraInicioId;
   late final String _estructuraInicioLabel; // ej. "PZ0001 - Pozo"
   int? _projectServerId; // id_proyecto en servidor
+  double? _cotaEstructuraInicio;
+  double? _cotaEstructuraDestino;
 
   // ---- Campos básicos tubería ----
   final _idCtrl = TextEditingController();
-  final _diametroCtrl = TextEditingController();
-  final _materialCtrl = TextEditingController();
-  final _flujoCtrl = TextEditingController();
-  final _estadoCtrl = TextEditingController();
+  final _diametroCtrl = TextEditingController(); // pulgadas
+  final _materialCtrl = TextEditingController(); // texto desde dropdown
+  final _estadoCtrl = TextEditingController(); // texto desde dropdown
+  bool _flujo = false; // flujo como booleano en UI
   bool _sedimento = false;
   final _gradosCtrl = TextEditingController();
   final _observacionesCtrl = TextEditingController();
@@ -51,14 +51,10 @@ class _CreatePipeScreenState extends State<CreatePipeScreen> {
   final _cotaClaveDestinoCtrl = TextEditingController();
   final _cotaBateaDestinoCtrl = TextEditingController();
 
-  // ----- Estructuras -----
+  // ----- Estructuras destino -----
   String? _estructuraDestinoId;
   List<Map<String, dynamic>> _estructurasProyecto = [];
   bool _loadingEstructuras = true;
-
-  // ----- Foto opcional -----
-  final ImagePicker _picker = ImagePicker();
-  XFile? _fotoInspeccion;
 
   bool _saving = false;
 
@@ -83,7 +79,16 @@ class _CreatePipeScreenState extends State<CreatePipeScreen> {
       _projectServerId = null;
     }
 
+    // Cota estructura inicio
+    final cotaIniRaw = s['cota_estructura'];
+    _cotaEstructuraInicio = _parseDynamicToDouble(cotaIniRaw);
+
     _loadEstructurasProyecto();
+
+    // 👉 Recalcular campos automáticos cuando cambien estos valores
+    _diametroCtrl.addListener(_recalcularCamposAutomaticos);
+    _profClaveInicioCtrl.addListener(_recalcularCamposAutomaticos);
+    _profClaveDestinoCtrl.addListener(_recalcularCamposAutomaticos);
   }
 
   @override
@@ -91,7 +96,6 @@ class _CreatePipeScreenState extends State<CreatePipeScreen> {
     _idCtrl.dispose();
     _diametroCtrl.dispose();
     _materialCtrl.dispose();
-    _flujoCtrl.dispose();
     _estadoCtrl.dispose();
     _gradosCtrl.dispose();
     _observacionesCtrl.dispose();
@@ -109,11 +113,117 @@ class _CreatePipeScreenState extends State<CreatePipeScreen> {
     super.dispose();
   }
 
-  // ------------ Helpers ------------
+  // ------------ Helpers numéricos ------------
 
   double? _toDouble(String text) {
     if (text.trim().isEmpty) return null;
     return double.tryParse(text.replaceAll(',', '.'));
+  }
+
+  double? _parseDynamicToDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String) {
+      return double.tryParse(value.replaceAll(',', '.'));
+    }
+    return null;
+  }
+
+  String? _validatePositiveOptional(
+    String? value, {
+    String label = 'valor',
+    bool required = false,
+  }) {
+    if (value == null || value.trim().isEmpty) {
+      if (required) return 'Ingresa $label';
+      return null;
+    }
+    final d = double.tryParse(value.replaceAll(',', '.'));
+    if (d == null) return 'Valor inválido en $label';
+    if (d <= 0) return '$label debe ser mayor a 0';
+    return null;
+  }
+
+  /// 👉 Calcula:
+  /// - profundidad_batea = profundidad_clave + diámetro_en_metros
+  /// - cota_clave        = cota_estructura - profundidad_clave
+  /// - cota_batea        = cota_estructura - profundidad_batea
+  /// para inicio y destino.
+  void _recalcularCamposAutomaticos() {
+    final diamPulg = _toDouble(_diametroCtrl.text);
+    final diamMetros = (diamPulg != null && diamPulg > 0)
+        ? diamPulg * 0.0254
+        : null;
+
+    // ----- INICIO -----
+    final profClaveIni = _toDouble(_profClaveInicioCtrl.text);
+    double? profBateaIni;
+
+    if (profClaveIni != null && profClaveIni > 0) {
+      // Profundidad batea inicio
+      if (diamMetros != null) {
+        profBateaIni = profClaveIni + diamMetros;
+        _profBateaInicioCtrl.text = profBateaIni.toStringAsFixed(3);
+      } else {
+        profBateaIni = null;
+        _profBateaInicioCtrl.text = '';
+      }
+
+      // Cota clave inicio = cota estructura inicio - profundidad clave
+      if (_cotaEstructuraInicio != null) {
+        final cotaClaveIni = _cotaEstructuraInicio! - profClaveIni;
+        _cotaClaveInicioCtrl.text = cotaClaveIni.toStringAsFixed(3);
+      } else {
+        _cotaClaveInicioCtrl.text = '';
+      }
+
+      // Cota batea inicio = cota estructura inicio - profundidad batea
+      if (_cotaEstructuraInicio != null && profBateaIni != null) {
+        final cotaBateaIni = _cotaEstructuraInicio! - profBateaIni;
+        _cotaBateaInicioCtrl.text = cotaBateaIni.toStringAsFixed(3);
+      } else {
+        _cotaBateaInicioCtrl.text = '';
+      }
+    } else {
+      _profBateaInicioCtrl.text = '';
+      _cotaClaveInicioCtrl.text = '';
+      _cotaBateaInicioCtrl.text = '';
+    }
+
+    // ----- DESTINO -----
+    final profClaveDest = _toDouble(_profClaveDestinoCtrl.text);
+    double? profBateaDest;
+
+    if (profClaveDest != null && profClaveDest > 0) {
+      // Profundidad batea destino
+      if (diamMetros != null) {
+        profBateaDest = profClaveDest + diamMetros;
+        _profBateaDestinoCtrl.text = profBateaDest.toStringAsFixed(3);
+      } else {
+        profBateaDest = null;
+        _profBateaDestinoCtrl.text = '';
+      }
+
+      // Cota clave destino = cota estructura destino - profundidad clave
+      if (_cotaEstructuraDestino != null) {
+        final cotaClaveDest = _cotaEstructuraDestino! - profClaveDest;
+        _cotaClaveDestinoCtrl.text = cotaClaveDest.toStringAsFixed(3);
+      } else {
+        _cotaClaveDestinoCtrl.text = '';
+      }
+
+      // Cota batea destino = cota estructura destino - profundidad batea
+      if (_cotaEstructuraDestino != null && profBateaDest != null) {
+        final cotaBateaDest = _cotaEstructuraDestino! - profBateaDest;
+        _cotaBateaDestinoCtrl.text = cotaBateaDest.toStringAsFixed(3);
+      } else {
+        _cotaBateaDestinoCtrl.text = '';
+      }
+    } else {
+      _profBateaDestinoCtrl.text = '';
+      _cotaClaveDestinoCtrl.text = '';
+      _cotaBateaDestinoCtrl.text = '';
+    }
   }
 
   Future<void> _loadEstructurasProyecto() async {
@@ -177,14 +287,6 @@ class _CreatePipeScreenState extends State<CreatePipeScreen> {
     }
   }
 
-  Future<void> _pickSimplePhoto() async {
-    final picked = await _picker.pickImage(source: ImageSource.camera);
-    if (picked == null) return;
-    setState(() {
-      _fotoInspeccion = picked;
-    });
-  }
-
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -214,11 +316,11 @@ class _CreatePipeScreenState extends State<CreatePipeScreen> {
       await api.createPipe(
         token: token,
         id: _idCtrl.text.trim(),
-        diametro: _toDouble(_diametroCtrl.text),
+        diametro: _toDouble(_diametroCtrl.text), // pulgadas
         material: _materialCtrl.text.trim().isEmpty
             ? null
             : _materialCtrl.text.trim(),
-        flujo: _flujoCtrl.text.trim().isEmpty ? null : _flujoCtrl.text.trim(),
+        flujo: _flujo,
         estado: _estadoCtrl.text.trim().isEmpty
             ? null
             : _estadoCtrl.text.trim(),
@@ -342,7 +444,22 @@ class _CreatePipeScreenState extends State<CreatePipeScreen> {
                             onChanged: (value) {
                               setState(() {
                                 _estructuraDestinoId = value;
+                                // Actualizamos cota_estructura destino
+                                if (value != null) {
+                                  final dest = _estructurasProyecto.firstWhere(
+                                    (e) => (e['id']?.toString() ?? '') == value,
+                                    orElse: () => <String, dynamic>{},
+                                  );
+                                  _cotaEstructuraDestino =
+                                      _parseDynamicToDouble(
+                                        dest['cota_estructura'],
+                                      );
+                                } else {
+                                  _cotaEstructuraDestino = null;
+                                }
                               });
+                              // Recalcular porque ahora tenemos nueva cota destino
+                              _recalcularCamposAutomaticos();
                             },
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -363,42 +480,104 @@ class _CreatePipeScreenState extends State<CreatePipeScreen> {
                     ),
                     const SizedBox(height: 12),
 
+                    // Diámetro en pulgadas (0 < d < 32)
                     TextFormField(
                       controller: _diametroCtrl,
                       decoration: const InputDecoration(
-                        labelText: 'Diámetro (m)',
+                        labelText: 'Diámetro (pulgadas)',
                         prefixIcon: Icon(Icons.radar),
                       ),
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Ingresa el diámetro en pulgadas';
+                        }
+                        final d = double.tryParse(value.replaceAll(',', '.'));
+                        if (d == null) return 'Valor inválido';
+                        if (d <= 0) {
+                          return 'El diámetro debe ser mayor a 0';
+                        }
+                        if (d >= 32) {
+                          return 'El diámetro debe ser menor a 32 pulgadas';
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 12),
 
-                    TextFormField(
-                      controller: _materialCtrl,
+                    // Material (dropdown)
+                    DropdownButtonFormField<String>(
+                      value: _materialCtrl.text.isEmpty
+                          ? null
+                          : _materialCtrl.text,
                       decoration: const InputDecoration(
                         labelText: 'Material',
                         prefixIcon: Icon(Icons.category),
                       ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'Concreto',
+                          child: Text('Concreto'),
+                        ),
+                        DropdownMenuItem(value: 'Gres', child: Text('Gres')),
+                        DropdownMenuItem(value: 'PVC', child: Text('PVC')),
+                        DropdownMenuItem(value: 'Acero', child: Text('Acero')),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _materialCtrl.text = value ?? '';
+                        });
+                      },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Selecciona el material';
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 12),
 
-                    TextFormField(
-                      controller: _flujoCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Flujo',
-                        prefixIcon: Icon(Icons.water),
-                      ),
+                    // Flujo como booleano
+                    SwitchListTile(
+                      title: const Text('Flujo'),
+                      subtitle: const Text('Indica si presenta flujo'),
+                      value: _flujo,
+                      onChanged: (v) {
+                        setState(() {
+                          _flujo = v;
+                        });
+                      },
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
 
-                    TextFormField(
-                      controller: _estadoCtrl,
+                    // Estado (dropdown)
+                    DropdownButtonFormField<String>(
+                      value: _estadoCtrl.text.isEmpty ? null : _estadoCtrl.text,
                       decoration: const InputDecoration(
                         labelText: 'Estado',
                         prefixIcon: Icon(Icons.info_outline),
                       ),
+                      items: const [
+                        DropdownMenuItem(value: 'Bueno', child: Text('Bueno')),
+                        DropdownMenuItem(
+                          value: 'Regular',
+                          child: Text('Regular'),
+                        ),
+                        DropdownMenuItem(value: 'Malo', child: Text('Malo')),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _estadoCtrl.text = value ?? '';
+                        });
+                      },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Selecciona un estado';
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 8),
 
@@ -416,12 +595,25 @@ class _CreatePipeScreenState extends State<CreatePipeScreen> {
                     TextFormField(
                       controller: _gradosCtrl,
                       decoration: const InputDecoration(
-                        labelText: 'Grados (inclinación)',
+                        labelText: 'Grados (0° a 360°)',
                         prefixIcon: Icon(Icons.rotate_right),
                       ),
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Ingresa los grados';
+                        }
+
+                        final g = double.tryParse(value.replaceAll(',', '.'));
+                        if (g == null) return 'Valor inválido';
+
+                        if (g < 0 || g > 360) {
+                          return 'Debe estar entre 0 y 360 grados';
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 16),
 
@@ -432,6 +624,7 @@ class _CreatePipeScreenState extends State<CreatePipeScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
+
                     TextFormField(
                       controller: _profClaveInicioCtrl,
                       decoration: const InputDecoration(
@@ -440,10 +633,18 @@ class _CreatePipeScreenState extends State<CreatePipeScreen> {
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
+                      validator: (v) => _validatePositiveOptional(
+                        v,
+                        label: 'Profundidad clave inicio',
+                        required: true,
+                      ),
                     ),
                     const SizedBox(height: 8),
+
+                    // Profundidad batea inicio (auto)
                     TextFormField(
                       controller: _profBateaInicioCtrl,
+                      readOnly: true,
                       decoration: const InputDecoration(
                         labelText: 'Profundidad batea inicio (m)',
                       ),
@@ -452,8 +653,11 @@ class _CreatePipeScreenState extends State<CreatePipeScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
+
+                    // Cota clave inicio (auto)
                     TextFormField(
                       controller: _cotaClaveInicioCtrl,
+                      readOnly: true,
                       decoration: const InputDecoration(
                         labelText: 'Cota clave inicio (m)',
                       ),
@@ -462,8 +666,11 @@ class _CreatePipeScreenState extends State<CreatePipeScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
+
+                    // Cota batea inicio (auto)
                     TextFormField(
                       controller: _cotaBateaInicioCtrl,
+                      readOnly: true,
                       decoration: const InputDecoration(
                         labelText: 'Cota batea inicio (m)',
                       ),
@@ -471,6 +678,7 @@ class _CreatePipeScreenState extends State<CreatePipeScreen> {
                         decimal: true,
                       ),
                     ),
+
                     const SizedBox(height: 16),
 
                     Text(
@@ -480,6 +688,7 @@ class _CreatePipeScreenState extends State<CreatePipeScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
+
                     TextFormField(
                       controller: _profClaveDestinoCtrl,
                       decoration: const InputDecoration(
@@ -488,10 +697,18 @@ class _CreatePipeScreenState extends State<CreatePipeScreen> {
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
+                      validator: (v) => _validatePositiveOptional(
+                        v,
+                        label: 'Profundidad clave destino',
+                        required: true,
+                      ),
                     ),
                     const SizedBox(height: 8),
+
+                    // Profundidad batea destino (auto)
                     TextFormField(
                       controller: _profBateaDestinoCtrl,
+                      readOnly: true,
                       decoration: const InputDecoration(
                         labelText: 'Profundidad batea destino (m)',
                       ),
@@ -500,8 +717,11 @@ class _CreatePipeScreenState extends State<CreatePipeScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
+
+                    // Cota clave destino (auto)
                     TextFormField(
                       controller: _cotaClaveDestinoCtrl,
+                      readOnly: true,
                       decoration: const InputDecoration(
                         labelText: 'Cota clave destino (m)',
                       ),
@@ -510,8 +730,11 @@ class _CreatePipeScreenState extends State<CreatePipeScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
+
+                    // Cota batea destino (auto)
                     TextFormField(
                       controller: _cotaBateaDestinoCtrl,
+                      readOnly: true,
                       decoration: const InputDecoration(
                         labelText: 'Cota batea destino (m)',
                       ),
@@ -519,6 +742,7 @@ class _CreatePipeScreenState extends State<CreatePipeScreen> {
                         decimal: true,
                       ),
                     ),
+
                     const SizedBox(height: 16),
 
                     TextFormField(
@@ -531,37 +755,6 @@ class _CreatePipeScreenState extends State<CreatePipeScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    if (_fotoInspeccion != null)
-                      Container(
-                        height: 120,
-                        width: double.infinity,
-                        margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.grey[300]!),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.file(
-                            File(_fotoInspeccion!.path),
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: _pickSimplePhoto,
-                        icon: const Icon(Icons.photo_camera_outlined),
-                        label: Text(
-                          _fotoInspeccion == null
-                              ? 'Tomar foto de referencia (opcional)'
-                              : 'Repetir foto de referencia',
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton.icon(

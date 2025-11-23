@@ -121,7 +121,7 @@ class ApiClient {
     String? climaInspeccion,
     String? tipoVia,
 
-    // 👉 NUEVO: geometría WKT
+    // Geometría WKT
     String? geometria,
 
     // Pozo
@@ -168,10 +168,7 @@ class ApiClient {
         'hora_inspeccion': horaInspeccion,
         'clima_inspeccion': climaInspeccion,
         'tipo_via': tipoVia,
-
-        // 👉 Enviamos la geometría WKT al backend
         'geometria': geometria,
-
         'tipo_sistema': tipoSistema,
         'material': material,
         'cono_reduccion': conoReduccion,
@@ -243,8 +240,6 @@ class ApiClient {
     await dio.delete('/estructuras/$id', queryParameters: {'token': token});
   }
 
-  /// 🔹 Actualizar TODOS los campos de una estructura hidráulica (excepto el id).
-  /// Los parámetros son opcionales para que puedas reutilizarlo también para ediciones parciales.
   Future<Map<String, dynamic>> updateHydraulicStructure({
     required String token,
     required String id,
@@ -375,9 +370,9 @@ class ApiClient {
   Future<void> createPipe({
     required String token,
     required String id,
-    double? diametro,
+    double? diametro, // pulgadas
     String? material,
-    String? flujo,
+    required bool flujo, // ahora booleano
     String? estado,
     required bool sedimento,
     double? cotaClaveInicio,
@@ -419,8 +414,9 @@ class ApiClient {
     );
   }
 
-  // ---------- Tuberías: obtener por estructura ----------
-
+  /// 🔹 NUEVO: obtener tuberías ligadas a una estructura
+  ///
+  /// GET /tuberias/{estructura_id}?token=...
   Future<List<Map<String, dynamic>>> getPipesForStructure({
     required String token,
     required String estructuraId,
@@ -436,7 +432,7 @@ class ApiClient {
           .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e as Map))
           .toList();
     } else {
-      throw Exception('Respuesta inesperada al obtener tuberías');
+      throw Exception('Respuesta inesperada al obtener las tuberías');
     }
   }
 }
