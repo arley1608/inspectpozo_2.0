@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
+import 'edit_pipe_screen.dart'; // 👈 NUEVO
 
 class PipesForStructureScreen extends StatefulWidget {
   final String structureId;
@@ -63,6 +64,63 @@ class _PipesForStructureScreenState extends State<PipesForStructureScreen> {
         _loading = false;
         _error = 'Error al cargar tuberías: $e';
       });
+    }
+  }
+
+  Future<void> _deletePipe(String pipeId) async {
+    final theme = Theme.of(context);
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar tubería'),
+        content: Text(
+          '¿Seguro que deseas eliminar la tubería "$pipeId"?\n\n'
+          'Esta acción es permanente.',
+          style: theme.textTheme.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true) return;
+
+    final auth = context.read<AuthService>();
+    final api = context.read<ApiClient>();
+    final token = auth.token;
+
+    if (token == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sesión inválida, inicia sesión de nuevo.'),
+        ),
+      );
+      return;
+    }
+
+    try {
+      await api.deletePipe(token: token, pipeId: pipeId);
+      await _loadPipes();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tubería eliminada correctamente')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error eliminando tubería: $e')));
     }
   }
 
@@ -133,40 +191,91 @@ class _PipesForStructureScreenState extends State<PipesForStructureScreen> {
                   }
 
                   return Card(
-                    elevation: 1,
+                    elevation: 2,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: color?.withOpacity(0.15),
-                        child: Icon(icono, color: color),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
                       ),
-                      title: Text(
-                        id,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          const SizedBox(height: 4),
-                          Text(
-                            rol,
-                            style: TextStyle(
-                              color: color,
-                              fontWeight: FontWeight.w500,
+                          ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 4,
+                            ),
+                            leading: CircleAvatar(
+                              backgroundColor: color?.withOpacity(0.15),
+                              child: Icon(icono, color: color),
+                            ),
+                            title: Text(
+                              id,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.blueGrey[900],
+                              ),
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 4),
+                                Text(
+                                  rol,
+                                  style: TextStyle(
+                                    color: color,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Diámetro: '
+                                  '${diametro != null ? '$diametro"' : '—'}'
+                                  ' • Material: $material',
+                                ),
+                                Text(
+                                  'Estado: $estado'
+                                  '${grados != null ? ' • Grados: $grados°' : ''}',
+                                ),
+                              ],
                             ),
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            'Diámetro: '
-                            '${diametro != null ? '$diametro"' : '—'}'
-                            ' • Material: $material',
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: () async {
+                                  final result = await Navigator.of(context)
+                                      .push(
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              EditPipeScreen(pipe: pipe),
+                                        ),
+                                      );
+
+                                  if (result == true) {
+                                    await _loadPipes();
+                                  }
+                                },
+                                icon: const Icon(Icons.edit),
+                                label: const Text('Modificar'),
+                              ),
+                              const SizedBox(width: 8),
+                              TextButton.icon(
+                                onPressed: () => _deletePipe(id),
+                                icon: const Icon(Icons.delete_outline),
+                                label: const Text('Eliminar'),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.red[700],
+                                ),
+                              ),
+                            ],
                           ),
-                          Text(
-                            'Estado: $estado'
-                            '${grados != null ? ' • Grados: $grados°' : ''}',
-                          ),
+                          const SizedBox(height: 8),
                         ],
                       ),
                     ),

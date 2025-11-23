@@ -372,7 +372,7 @@ class ApiClient {
     required String id,
     double? diametro, // pulgadas
     String? material,
-    required bool flujo, // ahora booleano
+    required bool flujo, // booleano
     String? estado,
     required bool sedimento,
     double? cotaClaveInicio,
@@ -414,9 +414,65 @@ class ApiClient {
     );
   }
 
-  /// 🔹 NUEVO: obtener tuberías ligadas a una estructura
-  ///
-  /// GET /tuberias/{estructura_id}?token=...
+  /// 🔹 Actualizar tubería existente
+  Future<Map<String, dynamic>> updatePipe({
+    required String token,
+    required String id,
+    double? diametro,
+    String? material,
+    bool? flujo,
+    String? estado,
+    bool? sedimento,
+    double? cotaClaveInicio,
+    double? cotaBateaInicio,
+    double? profundidadClaveInicio,
+    double? profundidadBateaInicio,
+    double? cotaClaveDestino,
+    double? cotaBateaDestino,
+    double? profundidadClaveDestino,
+    double? profundidadBateaDestino,
+    double? grados,
+    String? observaciones,
+  }) async {
+    final body = <String, dynamic>{};
+
+    if (diametro != null) body['diametro'] = diametro;
+    if (material != null) body['material'] = material;
+    if (flujo != null) body['flujo'] = flujo;
+    if (estado != null) body['estado'] = estado;
+    if (sedimento != null) body['sedimento'] = sedimento;
+
+    if (cotaClaveInicio != null) body['cota_clave_inicio'] = cotaClaveInicio;
+    if (cotaBateaInicio != null) body['cota_batea_inicio'] = cotaBateaInicio;
+    if (profundidadClaveInicio != null) {
+      body['profundidad_clave_inicio'] = profundidadClaveInicio;
+    }
+    if (profundidadBateaInicio != null) {
+      body['profundidad_batea_inicio'] = profundidadBateaInicio;
+    }
+
+    if (cotaClaveDestino != null) body['cota_clave_destino'] = cotaClaveDestino;
+    if (cotaBateaDestino != null) body['cota_batea_destino'] = cotaBateaDestino;
+    if (profundidadClaveDestino != null) {
+      body['profundidad_clave_destino'] = profundidadClaveDestino;
+    }
+    if (profundidadBateaDestino != null) {
+      body['profundidad_batea_destino'] = profundidadBateaDestino;
+    }
+
+    if (grados != null) body['grados'] = grados;
+    if (observaciones != null) body['observaciones'] = observaciones;
+
+    final res = await dio.put(
+      '/tuberias/$id',
+      queryParameters: {'token': token},
+      data: body,
+    );
+
+    return Map<String, dynamic>.from(res.data);
+  }
+
+  /// Obtener tuberías ligadas a una estructura
   Future<List<Map<String, dynamic>>> getPipesForStructure({
     required String token,
     required String estructuraId,
@@ -434,5 +490,12 @@ class ApiClient {
     } else {
       throw Exception('Respuesta inesperada al obtener las tuberías');
     }
+  }
+
+  Future<void> deletePipe({
+    required String token,
+    required String pipeId,
+  }) async {
+    await dio.delete('/tuberias/$pipeId', queryParameters: {'token': token});
   }
 }
