@@ -515,4 +515,22 @@ class ApiClient {
       );
     }
   }
+
+  /// ---- Mapa de conexiones (estructuras + tuberías) ----
+  Future<Map<String, dynamic>> getProjectMapData({
+    required String token,
+    required int projectId,
+  }) async {
+    final res = await dio.get(
+      '/proyectos/$projectId/map-data',
+      queryParameters: {'token': token},
+    );
+
+    final data = res.data;
+    if (data is Map) {
+      return Map<String, dynamic>.from(data);
+    } else {
+      throw Exception('Respuesta inesperada al obtener datos de mapa');
+    }
+  }
 }
