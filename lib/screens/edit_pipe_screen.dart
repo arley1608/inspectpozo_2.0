@@ -21,6 +21,10 @@ class _EditPipeScreenState extends State<EditPipeScreen> {
   late final String _estructuraInicioId;
   late final String _estructuraDestinoId;
 
+  // Estimación de cota de estructura (inicio/destino) a partir de los datos ya guardados
+  double? _cotaEstructuraInicio;
+  double? _cotaEstructuraDestino;
+
   // Campos básicos
   final _diametroCtrl = TextEditingController(); // pulgadas
   final _materialCtrl = TextEditingController(); // se rellena desde dropdown
@@ -71,6 +75,29 @@ class _EditPipeScreenState extends State<EditPipeScreen> {
     _profBateaDestinoCtrl.text = _toText(p['profundidad_batea_destino']);
     _cotaClaveDestinoCtrl.text = _toText(p['cota_clave_destino']);
     _cotaBateaDestinoCtrl.text = _toText(p['cota_batea_destino']);
+
+    // ---- Estimar cota de estructura inicio/destino a partir de los datos ya guardados ----
+    final profClaveIni = _toDouble(_profClaveInicioCtrl.text);
+    final cotaClaveIni = _toDouble(_cotaClaveInicioCtrl.text);
+    if (profClaveIni != null && cotaClaveIni != null) {
+      _cotaEstructuraInicio = cotaClaveIni + profClaveIni;
+    }
+
+    final profClaveDest = _toDouble(_profClaveDestinoCtrl.text);
+    final cotaClaveDest = _toDouble(_cotaClaveDestinoCtrl.text);
+    if (profClaveDest != null && cotaClaveDest != null) {
+      _cotaEstructuraDestino = cotaClaveDest + profClaveDest;
+    }
+
+    // 👉 Listeners para recalcular automáticamente como en la creación
+    _diametroCtrl.addListener(_recalcularCamposAutomaticos);
+    _profClaveInicioCtrl.addListener(_recalcularCamposAutomaticos);
+    _profClaveDestinoCtrl.addListener(_recalcularCamposAutomaticos);
+
+    // 👉 Hacemos un primer recalculo para que todo quede consistente
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _recalcularCamposAutomaticos();
+    });
   }
 
   @override
@@ -119,6 +146,79 @@ class _EditPipeScreenState extends State<EditPipeScreen> {
     if (d == null) return 'Valor inválido en $label';
     if (d <= 0) return '$label debe ser mayor a 0';
     return null;
+  }
+
+  /// 👉 Misma lógica que en la creación:
+  /// - profundidad_batea = profundidad_clave + diámetro_en_metros
+  /// - cota_clave        = cota_estructura - profundidad_clave
+  /// - cota_batea        = cota_estructura - profundidad_batea
+  void _recalcularCamposAutomaticos() {
+    final diamPulg = _toDouble(_diametroCtrl.text);
+    final diamMetros = (diamPulg != null && diamPulg > 0)
+        ? diamPulg * 0.0254
+        : null;
+
+    // ----- INICIO -----
+    final profClaveIni = _toDouble(_profClaveInicioCtrl.text);
+    double? profBateaIni;
+
+    if (profClaveIni != null && profClaveIni > 0) {
+      // Profundidad batea inicio
+      if (diamMetros != null) {
+        profBateaIni = profClaveIni + diamMetros;
+        _profBateaInicioCtrl.text = profBateaIni.toStringAsFixed(3);
+      } else {
+        profBateaIni = null;
+        _profBateaInicioCtrl.text = '';
+      }
+
+      // Cota clave inicio = cota estructura inicio - profundidad clave
+      if (_cotaEstructuraInicio != null) {
+        final cotaClaveIni = _cotaEstructuraInicio! - profClaveIni;
+        _cotaClaveInicioCtrl.text = cotaClaveIni.toStringAsFixed(3);
+      }
+
+      // Cota batea inicio = cota estructura inicio - profundidad batea
+      if (_cotaEstructuraInicio != null && profBateaIni != null) {
+        final cotaBateaIni = _cotaEstructuraInicio! - profBateaIni;
+        _cotaBateaInicioCtrl.text = cotaBateaIni.toStringAsFixed(3);
+      }
+    } else {
+      _profBateaInicioCtrl.text = '';
+      _cotaClaveInicioCtrl.text = '';
+      _cotaBateaInicioCtrl.text = '';
+    }
+
+    // ----- DESTINO -----
+    final profClaveDest = _toDouble(_profClaveDestinoCtrl.text);
+    double? profBateaDest;
+
+    if (profClaveDest != null && profClaveDest > 0) {
+      // Profundidad batea destino
+      if (diamMetros != null) {
+        profBateaDest = profClaveDest + diamMetros;
+        _profBateaDestinoCtrl.text = profBateaDest.toStringAsFixed(3);
+      } else {
+        profBateaDest = null;
+        _profBateaDestinoCtrl.text = '';
+      }
+
+      // Cota clave destino = cota estructura destino - profundidad clave
+      if (_cotaEstructuraDestino != null) {
+        final cotaClaveDest = _cotaEstructuraDestino! - profClaveDest;
+        _cotaClaveDestinoCtrl.text = cotaClaveDest.toStringAsFixed(3);
+      }
+
+      // Cota batea destino = cota estructura destino - profundidad batea
+      if (_cotaEstructuraDestino != null && profBateaDest != null) {
+        final cotaBateaDest = _cotaEstructuraDestino! - profBateaDest;
+        _cotaBateaDestinoCtrl.text = cotaBateaDest.toStringAsFixed(3);
+      }
+    } else {
+      _profBateaDestinoCtrl.text = '';
+      _cotaClaveDestinoCtrl.text = '';
+      _cotaBateaDestinoCtrl.text = '';
+    }
   }
 
   Future<void> _submit() async {
