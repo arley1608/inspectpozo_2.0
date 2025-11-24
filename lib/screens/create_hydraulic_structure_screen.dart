@@ -113,6 +113,40 @@ class _CreateHydraulicStructureScreenState
     return double.tryParse(text.replaceAll(',', '.'));
   }
 
+  /// Validador para campos numéricos (excepto lat/lon): >= 0
+  String? _nonNegativeValidator(String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) return null; // opcional
+    final v = double.tryParse(text.replaceAll(',', '.'));
+    if (v == null) return 'Valor numérico inválido';
+    if (v < 0) return 'Debe ser mayor o igual a 0';
+    return null;
+  }
+
+  /// Validador de longitud: -180 a 180
+  String? _longitudeValidator(String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) return null; // opcional
+    final v = double.tryParse(text.replaceAll(',', '.'));
+    if (v == null) return 'Valor numérico inválido';
+    if (v < -180 || v > 180) {
+      return 'Longitud debe estar entre -180 y 180';
+    }
+    return null;
+  }
+
+  /// Validador de latitud: -90 a 90
+  String? _latitudeValidator(String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) return null; // opcional
+    final v = double.tryParse(text.replaceAll(',', '.'));
+    if (v == null) return 'Valor numérico inválido';
+    if (v < -90 || v > 90) {
+      return 'Latitud debe estar entre -90 y 90';
+    }
+    return null;
+  }
+
   String? _formatHora(TimeOfDay? t) {
     if (t == null) return null;
     final h = t.hour.toString().padLeft(2, '0');
@@ -451,11 +485,25 @@ class _CreateHydraulicStructureScreenState
 
                 const SizedBox(height: 16),
 
-                TextFormField(
-                  controller: _climaCtrl,
+                // ====== CLIMA (DROPDOWN) ======
+                DropdownButtonFormField<String>(
+                  value: _climaCtrl.text.isEmpty ? null : _climaCtrl.text,
                   decoration: const InputDecoration(
                     labelText: 'Clima de inspección',
                   ),
+                  items: const [
+                    DropdownMenuItem(value: 'Soleado', child: Text('Soleado')),
+                    DropdownMenuItem(value: 'Nublado', child: Text('Nublado')),
+                    DropdownMenuItem(
+                      value: 'Lluvioso',
+                      child: Text('Lluvioso'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _climaCtrl.text = value ?? '';
+                    });
+                  },
                 ),
                 const SizedBox(height: 8),
 
@@ -484,7 +532,7 @@ class _CreateHydraulicStructureScreenState
 
                 const SizedBox(height: 8),
 
-                // Longitud y Latitud
+                // Longitud y Latitud (validando rangos)
                 Row(
                   children: [
                     Expanded(
@@ -497,6 +545,7 @@ class _CreateHydraulicStructureScreenState
                           decimal: true,
                           signed: true,
                         ),
+                        validator: _longitudeValidator,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -508,6 +557,7 @@ class _CreateHydraulicStructureScreenState
                           decimal: true,
                           signed: true,
                         ),
+                        validator: _latitudeValidator,
                       ),
                     ),
                   ],
@@ -604,6 +654,7 @@ class _CreateHydraulicStructureScreenState
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
+                      validator: _nonNegativeValidator,
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
@@ -614,6 +665,7 @@ class _CreateHydraulicStructureScreenState
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
+                      validator: _nonNegativeValidator,
                     ),
                     const SizedBox(height: 8),
                   ],
@@ -625,6 +677,7 @@ class _CreateHydraulicStructureScreenState
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
+                    validator: _nonNegativeValidator,
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -674,6 +727,7 @@ class _CreateHydraulicStructureScreenState
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
+                    validator: _nonNegativeValidator,
                   ),
                   const SizedBox(height: 8),
                   TextFormField(
@@ -684,6 +738,7 @@ class _CreateHydraulicStructureScreenState
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
+                    validator: _nonNegativeValidator,
                   ),
                   const SizedBox(height: 8),
                   TextFormField(
@@ -694,15 +749,37 @@ class _CreateHydraulicStructureScreenState
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
+                    validator: _nonNegativeValidator,
                   ),
                   const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _materialSumideroCtrl,
+
+                  // ====== MATERIAL DEL SUMIDERO (DROPDOWN) ======
+                  DropdownButtonFormField<String>(
+                    value: _materialSumideroCtrl.text.isEmpty
+                        ? null
+                        : _materialSumideroCtrl.text,
                     decoration: const InputDecoration(
                       labelText: 'Material del sumidero',
                     ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'Concreto',
+                        child: Text('Concreto'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Ladrillo',
+                        child: Text('Ladrillo'),
+                      ),
+                      DropdownMenuItem(value: 'Otro', child: Text('Otro')),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _materialSumideroCtrl.text = value ?? '';
+                      });
+                    },
                   ),
                   const SizedBox(height: 8),
+
                   TextFormField(
                     controller: _anchoRejillaCtrl,
                     decoration: const InputDecoration(
@@ -711,6 +788,7 @@ class _CreateHydraulicStructureScreenState
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
+                    validator: _nonNegativeValidator,
                   ),
                   const SizedBox(height: 8),
                   TextFormField(
@@ -721,6 +799,7 @@ class _CreateHydraulicStructureScreenState
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
+                    validator: _nonNegativeValidator,
                   ),
                   const SizedBox(height: 8),
                   TextFormField(
@@ -731,13 +810,31 @@ class _CreateHydraulicStructureScreenState
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
+                    validator: _nonNegativeValidator,
                   ),
                   const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _materialRejillaCtrl,
+
+                  // ====== MATERIAL DE LA REJILLA (DROPDOWN) ======
+                  DropdownButtonFormField<String>(
+                    value: _materialRejillaCtrl.text.isEmpty
+                        ? null
+                        : _materialRejillaCtrl.text,
                     decoration: const InputDecoration(
                       labelText: 'Material de la rejilla',
                     ),
+                    items: const [
+                      DropdownMenuItem(value: 'Hierro', child: Text('Hierro')),
+                      DropdownMenuItem(
+                        value: 'Concreto',
+                        child: Text('Concreto'),
+                      ),
+                      DropdownMenuItem(value: 'Otro', child: Text('Otro')),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _materialRejillaCtrl.text = value ?? '';
+                      });
+                    },
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -837,6 +934,7 @@ class _CreateHydraulicStructureScreenState
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
+                  validator: _nonNegativeValidator,
                 ),
                 const SizedBox(height: 8),
 
