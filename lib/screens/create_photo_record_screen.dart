@@ -41,7 +41,7 @@ class _CreatePhotoRecordScreenState extends State<CreatePhotoRecordScreen> {
     return c;
   }
 
-  // IDs calculados para cada fotografía
+  // IDs calculados para cada fotografía (solo para mostrar en UI)
   String get _idPanoramica => '${widget.estructuraId}-panoramica';
   String get _idInicial => '${widget.estructuraId}-inicial';
   String get _idAbierto => '${widget.estructuraId}-abierto';
@@ -77,7 +77,7 @@ class _CreatePhotoRecordScreenState extends State<CreatePhotoRecordScreen> {
   }
 
   Future<void> _pickPhoto(String slot) async {
-    // Ahora permite elegir entre cámara o galería
+    // Permite elegir entre cámara o galería
     await showModalBottomSheet(
       context: context,
       builder: (ctx) => SafeArea(
@@ -132,23 +132,41 @@ class _CreatePhotoRecordScreenState extends State<CreatePhotoRecordScreen> {
     setState(() => _saving = true);
 
     try {
-      // Aquí en el futuro llamarás a api.uploadPhotoRecord(...) para cada tipo.
-      // Ejemplo (cuando actives backend):
-      // await api.uploadPhotoRecord(
-      //   token: token,
-      //   estructuraId: widget.estructuraId,
-      //   tipo: 'panoramica',
-      //   file: File(_fotoPanoramica!.path),
-      // );
+      // Llamadas al backend para cada tipo de fotografía
+      await api.uploadPhotoRecord(
+        token: token,
+        estructuraId: widget.estructuraId,
+        tipo: 'panoramica',
+        file: File(_fotoPanoramica!.path),
+      );
+
+      await api.uploadPhotoRecord(
+        token: token,
+        estructuraId: widget.estructuraId,
+        tipo: 'inicial',
+        file: File(_fotoInicial!.path),
+      );
+
+      await api.uploadPhotoRecord(
+        token: token,
+        estructuraId: widget.estructuraId,
+        tipo: 'abierto',
+        file: File(_fotoAbierto!.path),
+      );
+
+      await api.uploadPhotoRecord(
+        token: token,
+        estructuraId: widget.estructuraId,
+        tipo: 'final',
+        file: File(_fotoFinal!.path),
+      );
 
       if (!mounted) return;
       setState(() => _saving = false);
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Registro fotográfico completado (simulado, sin backend).',
-          ),
+          content: Text('Registro fotográfico completado correctamente.'),
         ),
       );
 

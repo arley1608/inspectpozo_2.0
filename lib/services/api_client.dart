@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import '../env.dart';
 
@@ -414,7 +416,6 @@ class ApiClient {
     );
   }
 
-  /// 🔹 Actualizar tubería existente
   Future<Map<String, dynamic>> updatePipe({
     required String token,
     required String id,
@@ -472,7 +473,6 @@ class ApiClient {
     return Map<String, dynamic>.from(res.data);
   }
 
-  /// Obtener tuberías ligadas a una estructura
   Future<List<Map<String, dynamic>>> getPipesForStructure({
     required String token,
     required String estructuraId,
@@ -499,7 +499,6 @@ class ApiClient {
     await dio.delete('/tuberias/$pipeId', queryParameters: {'token': token});
   }
 
-  /// 🔹 Obtener siguiente ID global de tubería (tubXXXX)
   Future<String> getNextPipeId({required String token}) async {
     final res = await dio.get(
       '/tuberias/next-id',
@@ -516,7 +515,6 @@ class ApiClient {
     }
   }
 
-  /// ---- Mapa de conexiones (estructuras + tuberías) ----
   Future<Map<String, dynamic>> getProjectMapData({
     required String token,
     required int projectId,
@@ -531,6 +529,55 @@ class ApiClient {
       return Map<String, dynamic>.from(data);
     } else {
       throw Exception('Respuesta inesperada al obtener datos de mapa');
+    }
+  }
+
+  // ---------- Registro fotográfico ----------
+
+  Future<Map<String, dynamic>> uploadPhotoRecord({
+    required String token,
+    required String estructuraId,
+    required String tipo, // 'panoramica' | 'inicial' | 'abierto' | 'final'
+    required File file,
+  }) async {
+    final fileName = file.path.split(Platform.pathSeparator).last;
+
+    final formData = FormData.fromMap({
+      'id_estructura': estructuraId,
+      'tipo': tipo,
+      // el backend sólo espera id_estructura, tipo y file
+      'file': await MultipartFile.fromFile(file.path, filename: fileName),
+    });
+
+    final res = await dio.post(
+      '/registros-fotograficos/',
+      queryParameters: {'token': token},
+      data: formData,
+    );
+
+    return Map<String, dynamic>.from(res.data);
+  }
+
+  /// Lista los registros fotográficos para una estructura.
+  /// El backend devuelve `imagen` en base64.
+  Future<List<Map<String, dynamic>>> getPhotoRecordsForStructure({
+    required String token,
+    required String estructuraId,
+  }) async {
+    final res = await dio.get(
+      '/estructuras/$estructuraId/registros-fotograficos',
+      queryParameters: {'token': token},
+    );
+
+    final data = res.data;
+    if (data is List) {
+      return data
+          .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+    } else {
+      throw Exception(
+        'Respuesta inesperada al obtener los registros fotográficos',
+      );
     }
   }
 }

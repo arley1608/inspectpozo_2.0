@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
-import 'create_photo_record_screen.dart';
 
 class CreateHydraulicStructureScreen extends StatefulWidget {
   final Map<String, dynamic> project;
@@ -64,7 +63,6 @@ class _CreateHydraulicStructureScreenState
   final _materialRejillaCtrl = TextEditingController();
 
   bool _saving = false;
-  bool _photosCompleted = false; // controla si ya se hicieron las 4 fotos
 
   @override
   void initState() {
@@ -223,18 +221,6 @@ class _CreateHydraulicStructureScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Debes seleccionar fecha y hora de inspección'),
-        ),
-      );
-      return;
-    }
-
-    // Bloquear si no se ha completado el registro fotográfico
-    if (!_photosCompleted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Debes completar el registro fotográfico (4 fotos) antes de guardar la estructura.',
-          ),
         ),
       );
       return;
@@ -971,7 +957,7 @@ class _CreateHydraulicStructureScreenState
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
-                    onPressed: (_saving || !_photosCompleted) ? null : _save,
+                    onPressed: _saving ? null : _save,
                     icon: _saving
                         ? const SizedBox(
                             height: 18,
@@ -980,41 +966,6 @@ class _CreateHydraulicStructureScreenState
                           )
                         : const Icon(Icons.save),
                     label: const Text('Guardar estructura'),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: _generatedId == null
-                        ? null
-                        : () async {
-                            final result = await Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => CreatePhotoRecordScreen(
-                                  estructuraId: _generatedId!,
-                                  estructuraLabel:
-                                      '${_generatedId!} - ${_tipo ?? ''}',
-                                ),
-                              ),
-                            );
-
-                            if (result == true && mounted) {
-                              setState(() {
-                                _photosCompleted = true;
-                              });
-
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Registro fotográfico completado. Ya puedes guardar la estructura.',
-                                  ),
-                                ),
-                              );
-                            }
-                          },
-                    icon: const Icon(Icons.photo_camera),
-                    label: const Text('Agregar fotografía'),
                   ),
                 ),
               ],

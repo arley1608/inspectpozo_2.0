@@ -1,19 +1,98 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
-// IMPORTANTE: debes crear este archivo después
+import '../services/api_client.dart';
 import 'create_pipe_screen.dart';
 import 'pipe_diagram_screen.dart';
 import 'pipes_for_structure_screen.dart';
+import 'create_photo_record_screen.dart';
 
-class HydraulicStructureDetailScreen extends StatelessWidget {
+class HydraulicStructureDetailScreen extends StatefulWidget {
   final Map<String, dynamic> structure;
+  final String token;
 
-  const HydraulicStructureDetailScreen({super.key, required this.structure});
+  const HydraulicStructureDetailScreen({
+    super.key,
+    required this.structure,
+    required this.token,
+  });
+
+  @override
+  State<HydraulicStructureDetailScreen> createState() =>
+      _HydraulicStructureDetailScreenState();
+}
+
+class _HydraulicStructureDetailScreenState
+    extends State<HydraulicStructureDetailScreen> {
+  // tipo -> imagen base64
+  final Map<String, String?> _photos = {
+    'panoramica': null,
+    'inicial': null,
+    'abierto': null,
+    'final': null,
+  };
+
+  bool _loadingPhotos = false;
+  String? _photoError;
+
+  Map<String, dynamic> get structure => widget.structure;
 
   String _stringOf(dynamic value) {
     if (value == null) return '—';
     if (value is bool) return value ? 'Sí' : 'No';
     return value.toString();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPhotos();
+  }
+
+  Future<void> _loadPhotos() async {
+    final id = structure['id']?.toString();
+    if (id == null || id.isEmpty) return;
+
+    setState(() {
+      _loadingPhotos = true;
+      _photoError = null;
+    });
+
+    try {
+      final api = ApiClient();
+      final registros = await api.getPhotoRecordsForStructure(
+        token: widget.token,
+        estructuraId: id,
+      );
+
+      final updated = Map<String, String?>.from(_photos);
+      for (final r in registros) {
+        final tipo = (r['tipo'] as String?)?.toLowerCase();
+        final imagenB64 = r['imagen'] as String?;
+        if (tipo != null &&
+            imagenB64 != null &&
+            imagenB64.isNotEmpty &&
+            updated.containsKey(tipo)) {
+          updated[tipo] = imagenB64;
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _photos
+          ..clear()
+          ..addAll(updated);
+        _loadingPhotos = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadingPhotos = false;
+        _photoError = 'Error cargando fotos';
+      });
+    }
   }
 
   @override
@@ -91,23 +170,65 @@ class HydraulicStructureDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
+            if (_photoError != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  _photoError!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.redAccent,
+                  ),
+                ),
+              ),
+
             Row(
               children: [
-                Expanded(child: _photoPlaceholder('Panorámica')),
+                Expanded(child: _photoSlot('Panorámica', 'panoramica')),
                 const SizedBox(width: 8),
-                Expanded(child: _photoPlaceholder('Inicial')),
+                Expanded(child: _photoSlot('Inicial', 'inicial')),
               ],
             ),
             const SizedBox(height: 8),
             Row(
               children: [
-                Expanded(child: _photoPlaceholder('Abierto')),
+                Expanded(child: _photoSlot('Abierto', 'abierto')),
                 const SizedBox(width: 8),
-                Expanded(child: _photoPlaceholder('Final')),
+                Expanded(child: _photoSlot('Final', 'final')),
               ],
             ),
 
             const SizedBox(height: 16),
+
+            // ==============================
+            //   BOTÓN AGREGAR REGISTRO FOTOGRÁFICO
+            // ==============================
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () async {
+                  final tipo = structure['tipo']?.toString() ?? '';
+                  final label = tipo.isEmpty ? id : '$id - $tipo';
+
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => CreatePhotoRecordScreen(
+                        estructuraId: id,
+                        estructuraLabel: label,
+                      ),
+                    ),
+                  );
+
+                  // Recargar fotos al volver
+                  if (mounted) {
+                    _loadPhotos();
+                  }
+                },
+                icon: const Icon(Icons.photo_camera),
+                label: const Text('Agregar registro fotográfico'),
+              ),
+            ),
+
+            const SizedBox(height: 8),
 
             // ==============================
             //   BOTÓN AGREGAR TUBERÍA
@@ -176,28 +297,62 @@ class HydraulicStructureDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _photoPlaceholder(String label) {
-    return Container(
-      height: 90,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[300]!),
-        color: Colors.grey[100],
-      ),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.photo, size: 28, color: Colors.grey),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
+  Widget _photoSlot(String label, String tipo) {
+    final b64 = _photos[tipo];
+
+    Widget child;
+    if (_loadingPhotos && b64 == null) {
+      child = const Center(
+        child: SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
         ),
-      ),
+      );
+    } else if (b64 != null && b64.isNotEmpty) {
+      try {
+        final bytes = Uint8List.fromList(base64Decode(b64));
+        child = ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.memory(
+            bytes,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+          ),
+        );
+      } catch (_) {
+        child = _photoPlaceholder(label);
+      }
+    } else {
+      child = _photoPlaceholder(label);
+    }
+
+    // 👇 Aquí se muestra el tipo ENCIMA de la foto
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          height: 90,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey[300]!),
+            color: Colors.grey[100],
+          ),
+          child: child,
+        ),
+      ],
     );
+  }
+
+  Widget _photoPlaceholder(String _label) {
+    // El tipo ahora se muestra arriba; aquí dejamos solo el ícono
+    return const Center(child: Icon(Icons.photo, size: 28, color: Colors.grey));
   }
 
   // ======================

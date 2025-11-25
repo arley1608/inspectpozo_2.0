@@ -203,11 +203,25 @@ class _HydraulicStructuresScreenState extends State<HydraulicStructuresScreen> {
                             children: [
                               OutlinedButton.icon(
                                 onPressed: () {
+                                  final auth = context.read<AuthService>();
+                                  final token = auth.token;
+                                  if (token == null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Sesión inválida, inicia sesión de nuevo.',
+                                        ),
+                                      ),
+                                    );
+                                    return;
+                                  }
+
                                   Navigator.of(context).push(
                                     MaterialPageRoute(
                                       builder: (_) =>
                                           HydraulicStructureDetailScreen(
                                             structure: e,
+                                            token: token, // 👈 SE PASA EL TOKEN
                                           ),
                                     ),
                                   );
