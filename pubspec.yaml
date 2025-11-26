@@ -104,5 +104,7 @@ flutter:
 flutter_icons:
   android: true
   ios: true
-  image_path: "assets/logo_inspectpozo.png"
+  image_path: "assets/icono_inspectpozo.png"
+  adaptive_icon_background: "#E6007E"   # tu magenta aproximado
+  adaptive_icon_foreground: "assets/icono_inspectpozo.png"
   min_sdk_android: 21
