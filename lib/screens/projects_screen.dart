@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 import '../data/local/app_database.dart';
 import '../data/repo/project_repository.dart';
@@ -18,15 +21,127 @@ class ProjectsScreen extends StatefulWidget {
 class _ProjectsScreenState extends State<ProjectsScreen> {
   late Future<List<Project>> _futureProjects;
 
+  // 🔹 Suscripción a cambios de conectividad
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
+  bool _isOnline = false;
+  bool _isSyncing = false;
+
   @override
   void initState() {
     super.initState();
     _loadProjects();
+    _listenConnectivity();
+  }
+
+  @override
+  void dispose() {
+    _connectivitySub?.cancel();
+    super.dispose();
+  }
+
+  void _listenConnectivity() {
+    // Escuchamos cambios de red (WiFi/datos)
+    _connectivitySub = Connectivity().onConnectivityChanged.listen((
+      List<ConnectivityResult> results,
+    ) async {
+      final hasNetwork = results.any((r) => r != ConnectivityResult.none);
+
+      // Pasamos de offline -> online
+      if (hasNetwork && !_isOnline) {
+        _isOnline = true;
+        await _syncAndReloadOnReconnect();
+      } else if (!hasNetwork) {
+        _isOnline = false;
+      }
+    });
+  }
+
+  Future<void> _syncAndReloadOnReconnect() async {
+    if (_isSyncing) return;
+    _isSyncing = true;
+
+    try {
+      final auth = context.read<AuthService>();
+      final repo = context.read<ProjectRepository>();
+      final token = auth.token;
+
+      if (token != null) {
+        // 🔹 Sincroniza proyectos pendientes con el servidor
+        await repo.syncPending(token: token);
+      }
+
+      // Después de sincronizar, recargamos la lista (local + remoto)
+      _loadProjects();
+      if (mounted) setState(() {});
+    } finally {
+      _isSyncing = false;
+    }
   }
 
   void _loadProjects() {
     final repo = Provider.of<ProjectRepository>(context, listen: false);
-    _futureProjects = repo.getAllProjects();
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final api = Provider.of<ApiClient>(context, listen: false);
+
+    _futureProjects = () async {
+      // 1. Siempre cargamos lo local
+      final localProjects = await repo.getAllProjects();
+
+      final token = auth.token;
+      if (token == null) {
+        // Sin token => solo offline
+        return localProjects;
+      }
+
+      // 2. Intentamos pedir proyectos remotos.
+      //    Si falla (sin conexión, timeout, etc.), devolvemos solo los locales.
+      List<Map<String, dynamic>> remoteList;
+      try {
+        remoteList = await api.getProjects(token: token);
+      } catch (_) {
+        return localProjects;
+      }
+
+      // 3. Indexar locales por serverId para no duplicar
+      final localByServerId = <int, Project>{};
+      for (final p in localProjects) {
+        final sid = p.serverId;
+        if (sid != null) {
+          localByServerId[sid] = p;
+        }
+      }
+
+      final merged = <Project>[];
+      merged.addAll(localProjects);
+
+      // 4. Mapear cada remoto a Project (solo los que no estén en SQLite)
+      for (final r in remoteList) {
+        final remoteId = r['id'];
+
+        if (remoteId is int && localByServerId.containsKey(remoteId)) {
+          // Ya está sincronizado en SQLite
+          continue;
+        }
+
+        final map = Map<String, dynamic>.from(r);
+
+        // Backend: 'id' = ID servidor
+        map['serverId'] = map['id'];
+
+        // ID local dummy (no se usa para escribir en BD aquí)
+        map['id'] = 0;
+
+        // Si viene id_usuario desde el backend, lo mapeamos
+        if (map.containsKey('id_usuario')) {
+          map['usuarioServerId'] = map['id_usuario'];
+        }
+
+        final p = Project.fromJson(map);
+        merged.add(p);
+      }
+
+      return merged;
+    }();
   }
 
   Future<void> _deleteProject(Project project) async {
@@ -89,8 +204,6 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final auth = context.watch<AuthService>();
-    final currentUserId = auth.currentUserId;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Proyectos activos')),
@@ -116,20 +229,14 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             );
           }
 
-          var projects = snapshot.data ?? [];
-
-          if (currentUserId != null) {
-            projects = projects
-                .where((p) => p.usuarioServerId == currentUserId)
-                .toList();
-          }
+          final projects = snapshot.data ?? [];
 
           if (projects.isEmpty) {
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text(
-                  'Aún no tienes proyectos registrados para tu usuario.\n\n'
+                  'Aún no tienes proyectos registrados.\n\n'
                   'Crea un nuevo proyecto desde la pantalla de inicio.',
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyMedium,

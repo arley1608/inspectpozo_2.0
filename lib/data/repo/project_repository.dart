@@ -57,6 +57,8 @@ class ProjectRepository {
   }
 
   /// Sincroniza proyectos pendientes usando el token actual del usuario.
+  /// Además, al final, trae los proyectos del servidor y los refleja en SQLite
+  /// para que luego estén disponibles en modo offline.
   Future<void> syncPending({required String token}) async {
     final pending = await db.pendingOutbox();
 
@@ -104,6 +106,72 @@ class ProjectRepository {
         await db.setOutboxStatus(job.id, 'pending');
       }
     }
+
+    // ===== NUEVO BLOQUE =====
+    // Después de procesar el outbox, traemos los proyectos remotos
+    // y los guardamos/actualizamos en SQLite para poder verlos offline.
+    try {
+      final remoteList = await api.getProjects(token: token);
+
+      for (final r in remoteList) {
+        final map = Map<String, dynamic>.from(r);
+
+        final serverId = map['id'] as int?;
+        if (serverId == null) continue;
+
+        final nombreRemoto = map['nombre'] as String? ?? '';
+
+        final contratoRemoto = map['contrato'] as String?;
+        final contratanteRemoto = map['contratante'] as String?;
+        final contratistaRemoto = map['contratista'] as String?;
+        final encargadoRemoto = map['encargado'] as String?;
+
+        // Si viene id_usuario desde el backend, lo usamos
+        final usuarioServerIdRemoto = map['id_usuario'] as int?;
+
+        // ¿Ya existe en SQLite algún proyecto con este serverId?
+        final existing = await (db.select(
+          db.projects,
+        )..where((tbl) => tbl.serverId.equals(serverId))).getSingleOrNull();
+
+        if (existing == null) {
+          // No existe => lo insertamos
+          await db.insertProject(
+            ProjectsCompanion.insert(
+              nombre: nombreRemoto,
+              contrato: Value(contratoRemoto),
+              contratante: Value(contratanteRemoto),
+              contratista: Value(contratistaRemoto),
+              encargado: Value(encargadoRemoto),
+              usuarioServerId: Value(usuarioServerIdRemoto),
+              // serverId y updatedAt como opcionales
+              serverId: Value(serverId),
+              updatedAt: Value(DateTime.now()),
+            ),
+          );
+        } else {
+          // Ya existe => lo actualizamos
+          await (db.update(
+            db.projects,
+          )..where((tbl) => tbl.id.equals(existing.id))).write(
+            ProjectsCompanion(
+              nombre: Value(nombreRemoto),
+              contrato: Value(contratoRemoto),
+              contratante: Value(contratanteRemoto),
+              contratista: Value(contratistaRemoto),
+              encargado: Value(encargadoRemoto),
+              usuarioServerId: Value(usuarioServerIdRemoto),
+              serverId: Value(serverId),
+              updatedAt: Value(DateTime.now()),
+            ),
+          );
+        }
+      }
+    } catch (_) {
+      // Si falla (sin internet, error backend, etc.), no rompemos el flujo de sync.
+      // Simplemente dejamos la BD local como está.
+    }
+    // ===== FIN BLOQUE NUEVO =====
   }
 
   Future<List<Project>> getAllProjects() => db.listProjects();
@@ -112,7 +180,7 @@ class ProjectRepository {
     await db.deleteProjectById(id);
   }
 
-  /// 🔹 NUEVO: actualizar el proyecto en la base de datos local
+  /// 🔹 Actualizar el proyecto en la base de datos local
   /// después de haberlo actualizado en el servidor.
   Future<void> updateLocalProjectFields({
     required int localId,

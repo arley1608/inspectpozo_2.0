@@ -73,9 +73,9 @@ class Projects extends Table {
   /// id del usuario en el servidor (cuando lo tengamos)
   IntColumn get usuarioServerId => integer().nullable()();
 
-  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get createdAt => dateTime().nullable()();
 
-  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().nullable()();
 }
 
 // ---------- DB ----------

@@ -23,6 +23,36 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  Future<void> _showNotRegisteredDialog() async {
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Usuario no registrado"),
+        content: const Text(
+          "No fue posible iniciar sesión con las credenciales ingresadas.\n\n"
+          "Es posible que el usuario no exista o que las credenciales sean incorrectas.\n\n"
+          "Si aún no tienes cuenta, puedes registrarte ahora.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text("Cancelar"),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const RegisterScreen()));
+            },
+            child: const Text("Registrarse"),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -34,10 +64,20 @@ class _LoginScreenState extends State<LoginScreen> {
         usuario: _userCtrl.text.trim(),
         contrasenia: _passCtrl.text,
       );
-      // Si llega aquí, login OK.
-      // MyApp cambiará de LoginScreen a HomeScreen según isAuthenticated.
+
+      // 🔹 Si después de intentar loguear NO quedó autenticado,
+      // mostramos la ventana emergente.
+      if (!auth.isAuthenticated) {
+        await _showNotRegisteredDialog();
+      }
+      // Si sí quedó autenticado, MyApp cambiará de pantalla como siempre.
     } catch (e) {
       if (!mounted) return;
+
+      // 🔹 Si hay excepción, también mostramos el diálogo
+      await _showNotRegisteredDialog();
+
+      // SnackBar informativo adicional
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error al iniciar sesión: $e')));

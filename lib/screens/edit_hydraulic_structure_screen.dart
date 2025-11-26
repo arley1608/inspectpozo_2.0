@@ -74,6 +74,10 @@ class _EditHydraulicStructureScreenState
     super.initState();
     final s = widget.structure;
 
+    // DEBUG para ver qué viene realmente
+    // Mira esto en la consola de Flutter cuando abras la pantalla
+    debugPrint('DEBUG ESTRUCTURA EDIT: $s');
+
     _id = (s['id'] ?? '').toString();
     _tipo = (s['tipo'] as String?) ?? 'Pozo';
 
@@ -100,26 +104,66 @@ class _EditHydraulicStructureScreenState
     String? lonStr;
     String? latStr;
 
-    // 1) Si vienen como lon/lat
-    if (s['lon'] != null && s['lat'] != null) {
+    // 0) Si viene como GeoJSON en 'geometria' o 'geom':
+    // { "type": "Point", "coordinates": [lon, lat] } o similar
+    final geomRaw = s['geometria'] ?? s['geom'];
+    if (geomRaw is Map) {
+      final coords = geomRaw['coordinates'] ?? geomRaw['coords'];
+      if (coords is List && coords.length >= 2) {
+        final lonVal = coords[0];
+        final latVal = coords[1];
+        if (lonVal != null && latVal != null) {
+          lonStr = lonVal.toString();
+          latStr = latVal.toString();
+        }
+      } else if (geomRaw['x'] != null && geomRaw['y'] != null) {
+        lonStr = geomRaw['x'].toString();
+        latStr = geomRaw['y'].toString();
+      }
+    }
+
+    // 1) Si vienen como lon/lat explícitos en la raíz
+    if (lonStr == null && s['lon'] != null && s['lat'] != null) {
       lonStr = s['lon'].toString();
       latStr = s['lat'].toString();
     }
+
     // 2) Si vienen como longitud/latitud
-    else if (s['longitud'] != null && s['latitud'] != null) {
+    if (lonStr == null && s['longitud'] != null && s['latitud'] != null) {
       lonStr = s['longitud'].toString();
       latStr = s['latitud'].toString();
     }
-    // 3) Si vienen como WKT en geometria_wkt
-    else if (s['geometria_wkt'] is String) {
+
+    // 3) Otras variantes típicas: long/lng, x/y, coord_x/coord_y
+    if (lonStr == null) {
+      final possibleLonKeys = ['long', 'lng', 'x', 'coord_x'];
+      final possibleLatKeys = ['lat', 'latitude', 'y', 'coord_y'];
+
+      for (final k in possibleLonKeys) {
+        if (s[k] != null) {
+          lonStr = s[k].toString();
+          break;
+        }
+      }
+      for (final k in possibleLatKeys) {
+        if (s[k] != null) {
+          latStr = s[k].toString();
+          break;
+        }
+      }
+    }
+
+    // 4) Si vienen como WKT/EWKT en geometria_wkt
+    if (lonStr == null && s['geometria_wkt'] is String) {
       final p = _parsePointFromWkt(s['geometria_wkt'] as String);
       if (p != null) {
         lonStr = p['lon']!.toString();
         latStr = p['lat']!.toString();
       }
     }
-    // 4) O en geometria (string WKT)
-    else if (s['geometria'] is String) {
+
+    // 5) O en geometria como String (WKT/EWKT)
+    if (lonStr == null && s['geometria'] is String) {
       final p = _parsePointFromWkt(s['geometria'] as String);
       if (p != null) {
         lonStr = p['lon']!.toString();
@@ -262,9 +306,20 @@ class _EditHydraulicStructureScreenState
     return null;
   }
 
-  /// Parsea WKT del tipo "POINT(lon lat)" y devuelve {lon, lat} si es posible.
+  /// Parsea WKT / EWKT:
+  /// - Acepta "POINT(lon lat)"
+  /// - Acepta "SRID=4326;POINT(lon lat)"
   Map<String, double>? _parsePointFromWkt(String wkt) {
-    final text = wkt.trim();
+    String text = wkt.trim();
+
+    // Si viene como EWKT con SRID=...;POINT(...)
+    if (text.toUpperCase().startsWith('SRID=')) {
+      final semi = text.indexOf(';');
+      if (semi != -1 && semi + 1 < text.length) {
+        text = text.substring(semi + 1).trim();
+      }
+    }
+
     if (!text.toUpperCase().startsWith('POINT')) return null;
 
     final start = text.indexOf('(');

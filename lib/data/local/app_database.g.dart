@@ -1159,10 +1159,9 @@ class $ProjectsTable extends Projects with TableInfo<$ProjectsTable, Project> {
   late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
     'created_at',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
-    defaultValue: currentDateAndTime,
   );
   static const VerificationMeta _updatedAtMeta = const VerificationMeta(
     'updatedAt',
@@ -1171,10 +1170,9 @@ class $ProjectsTable extends Projects with TableInfo<$ProjectsTable, Project> {
   late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
     'updated_at',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
-    defaultValue: currentDateAndTime,
   );
   @override
   List<GeneratedColumn> get $columns => [
@@ -1313,11 +1311,11 @@ class $ProjectsTable extends Projects with TableInfo<$ProjectsTable, Project> {
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
-      )!,
+      ),
       updatedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
-      )!,
+      ),
     );
   }
 
@@ -1350,8 +1348,8 @@ class Project extends DataClass implements Insertable<Project> {
 
   /// id del usuario en el servidor (cuando lo tengamos)
   final int? usuarioServerId;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
   const Project({
     required this.id,
     this.serverId,
@@ -1361,8 +1359,8 @@ class Project extends DataClass implements Insertable<Project> {
     this.contratista,
     this.encargado,
     this.usuarioServerId,
-    required this.createdAt,
-    required this.updatedAt,
+    this.createdAt,
+    this.updatedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1387,8 +1385,12 @@ class Project extends DataClass implements Insertable<Project> {
     if (!nullToAbsent || usuarioServerId != null) {
       map['usuario_server_id'] = Variable<int>(usuarioServerId);
     }
-    map['created_at'] = Variable<DateTime>(createdAt);
-    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || createdAt != null) {
+      map['created_at'] = Variable<DateTime>(createdAt);
+    }
+    if (!nullToAbsent || updatedAt != null) {
+      map['updated_at'] = Variable<DateTime>(updatedAt);
+    }
     return map;
   }
 
@@ -1414,8 +1416,12 @@ class Project extends DataClass implements Insertable<Project> {
       usuarioServerId: usuarioServerId == null && nullToAbsent
           ? const Value.absent()
           : Value(usuarioServerId),
-      createdAt: Value(createdAt),
-      updatedAt: Value(updatedAt),
+      createdAt: createdAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdAt),
+      updatedAt: updatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAt),
     );
   }
 
@@ -1433,8 +1439,8 @@ class Project extends DataClass implements Insertable<Project> {
       contratista: serializer.fromJson<String?>(json['contratista']),
       encargado: serializer.fromJson<String?>(json['encargado']),
       usuarioServerId: serializer.fromJson<int?>(json['usuarioServerId']),
-      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
-      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      createdAt: serializer.fromJson<DateTime?>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
     );
   }
   @override
@@ -1449,8 +1455,8 @@ class Project extends DataClass implements Insertable<Project> {
       'contratista': serializer.toJson<String?>(contratista),
       'encargado': serializer.toJson<String?>(encargado),
       'usuarioServerId': serializer.toJson<int?>(usuarioServerId),
-      'createdAt': serializer.toJson<DateTime>(createdAt),
-      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'createdAt': serializer.toJson<DateTime?>(createdAt),
+      'updatedAt': serializer.toJson<DateTime?>(updatedAt),
     };
   }
 
@@ -1463,8 +1469,8 @@ class Project extends DataClass implements Insertable<Project> {
     Value<String?> contratista = const Value.absent(),
     Value<String?> encargado = const Value.absent(),
     Value<int?> usuarioServerId = const Value.absent(),
-    DateTime? createdAt,
-    DateTime? updatedAt,
+    Value<DateTime?> createdAt = const Value.absent(),
+    Value<DateTime?> updatedAt = const Value.absent(),
   }) => Project(
     id: id ?? this.id,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -1476,8 +1482,8 @@ class Project extends DataClass implements Insertable<Project> {
     usuarioServerId: usuarioServerId.present
         ? usuarioServerId.value
         : this.usuarioServerId,
-    createdAt: createdAt ?? this.createdAt,
-    updatedAt: updatedAt ?? this.updatedAt,
+    createdAt: createdAt.present ? createdAt.value : this.createdAt,
+    updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
   );
   Project copyWithCompanion(ProjectsCompanion data) {
     return Project(
@@ -1555,8 +1561,8 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
   final Value<String?> contratista;
   final Value<String?> encargado;
   final Value<int?> usuarioServerId;
-  final Value<DateTime> createdAt;
-  final Value<DateTime> updatedAt;
+  final Value<DateTime?> createdAt;
+  final Value<DateTime?> updatedAt;
   const ProjectsCompanion({
     this.id = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -1616,8 +1622,8 @@ class ProjectsCompanion extends UpdateCompanion<Project> {
     Value<String?>? contratista,
     Value<String?>? encargado,
     Value<int?>? usuarioServerId,
-    Value<DateTime>? createdAt,
-    Value<DateTime>? updatedAt,
+    Value<DateTime?>? createdAt,
+    Value<DateTime?>? updatedAt,
   }) {
     return ProjectsCompanion(
       id: id ?? this.id,
@@ -2222,8 +2228,8 @@ typedef $$ProjectsTableCreateCompanionBuilder =
       Value<String?> contratista,
       Value<String?> encargado,
       Value<int?> usuarioServerId,
-      Value<DateTime> createdAt,
-      Value<DateTime> updatedAt,
+      Value<DateTime?> createdAt,
+      Value<DateTime?> updatedAt,
     });
 typedef $$ProjectsTableUpdateCompanionBuilder =
     ProjectsCompanion Function({
@@ -2235,8 +2241,8 @@ typedef $$ProjectsTableUpdateCompanionBuilder =
       Value<String?> contratista,
       Value<String?> encargado,
       Value<int?> usuarioServerId,
-      Value<DateTime> createdAt,
-      Value<DateTime> updatedAt,
+      Value<DateTime?> createdAt,
+      Value<DateTime?> updatedAt,
     });
 
 class $$ProjectsTableFilterComposer
@@ -2441,8 +2447,8 @@ class $$ProjectsTableTableManager
                 Value<String?> contratista = const Value.absent(),
                 Value<String?> encargado = const Value.absent(),
                 Value<int?> usuarioServerId = const Value.absent(),
-                Value<DateTime> createdAt = const Value.absent(),
-                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> createdAt = const Value.absent(),
+                Value<DateTime?> updatedAt = const Value.absent(),
               }) => ProjectsCompanion(
                 id: id,
                 serverId: serverId,
@@ -2465,8 +2471,8 @@ class $$ProjectsTableTableManager
                 Value<String?> contratista = const Value.absent(),
                 Value<String?> encargado = const Value.absent(),
                 Value<int?> usuarioServerId = const Value.absent(),
-                Value<DateTime> createdAt = const Value.absent(),
-                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> createdAt = const Value.absent(),
+                Value<DateTime?> updatedAt = const Value.absent(),
               }) => ProjectsCompanion.insert(
                 id: id,
                 serverId: serverId,
